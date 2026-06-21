@@ -19,7 +19,16 @@ int main(int argc, char *argv[]) {
       while (args[start] == ' ') {
         start++;
       }
+      
       printf("%s", args + start);
+    } else if (strcmp(cmd, "type") == 0) {
+      char arg[BUFFER_SIZE];
+      scanf("%s", arg);
+      if (strcmp(arg, "echo") == 0 || strcmp(arg, "type") == 0 || strcmp(arg, "exit") == 0) {
+        printf("%s is a shell builtin\n", arg);
+      } else {
+        printf("%s: not found\n", arg);
+      }
     } else {
       printf("%s: command not found\n", cmd);
     }
