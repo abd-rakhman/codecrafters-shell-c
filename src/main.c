@@ -19,7 +19,6 @@ int main(int argc, char *argv[]) {
       while (args[start] == ' ') {
         start++;
       }
-      
       printf("%s", args + start);
     } else if (strcmp(cmd, "type") == 0) {
       char arg[BUFFER_SIZE];
