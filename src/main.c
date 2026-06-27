@@ -107,6 +107,7 @@ int main(void) {
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
     else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
+    else if (strcmp(args[0], "pwd") == 0) pwd_command();
     else execute_command(args);
 
     printf("$ ");
