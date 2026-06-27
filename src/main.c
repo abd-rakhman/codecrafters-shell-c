@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 
 #define BUFFER_SIZE 1024
 
@@ -44,16 +43,11 @@ static void echo_command(char *args[]) {
 }
 
 static void cd_command(const char* path) {
-  struct stat st;
-  if (!(stat(path, &st) == 0 && S_ISDIR(st.st_mode))) {
-    printf("cd: %s: No such file or directory\n", path);
-    return ;
+  if (path == NULL || strcmp(path, "~") == 0) {
+    path = getenv("HOME");
   }
-
-
-  if (chdir(path) != 0) {
-    perror("cd");
-    return;
+  if (path != NULL && chdir(path) != 0) {
+    printf("cd: %s: No such file or directory\n", path);
   }
 }
 
@@ -71,11 +65,13 @@ static void type_command(const char *cmd) {
   }
 }
 
-static void pwd_command() {
-  char cwd[1024];
+static void pwd_command(void) {
+  char cwd[BUFFER_SIZE];
 
   if (getcwd(cwd, sizeof(cwd)) != NULL) {
     printf("%s\n", cwd);
+  } else {
+    perror("pwd");
   }
 }
 
