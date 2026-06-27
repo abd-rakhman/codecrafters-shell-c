@@ -42,10 +42,8 @@ char* find_executable(char* cmd) {
   return NULL;
 }
 
-void echo_command() {
-  char args[BUFFER_SIZE];
-  fgets(args, BUFFER_SIZE, stdin);
-  int start = 0;
+void echo_command(char *args) {
+  int start = 4;
   while (args[start] == ' ') {
     start++;
   }
@@ -87,7 +85,7 @@ int main(int argc, char *argv[]) {
     char cmd[BUFFER_SIZE];
     sscanf(args, "%s", cmd);
     if (strcmp(cmd, "exit") == 0) break;
-    else if (strcmp(cmd, "echo") == 0) echo_command();
+    else if (strcmp(cmd, "echo") == 0) echo_command(args);
     else if (strcmp(cmd, "type") == 0) {
       char arg[BUFFER_SIZE];
       sscanf(args + strlen(cmd), "%s", arg);
