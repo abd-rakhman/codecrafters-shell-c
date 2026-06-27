@@ -9,13 +9,14 @@
 #define BUFFER_SIZE 1024
 
 int main(int argc, char *argv[]) {
-  char *path = getenv("PATH");
+  char *original_path = getenv("PATH");
 
   setbuf(stdout, NULL);
   char cmd[BUFFER_SIZE];
   printf("$ ");
 
   while (scanf("%s", cmd) == 1) {
+    char *path = strdup(original_path);
     if (strcmp(cmd, "exit") == 0) {
       break;
     } else if (strcmp(cmd, "echo") == 0) {
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
         while ((entry = readdir(dir)) != NULL) {
           char* full_path = malloc(strlen(token) + strlen(entry->d_name) + 2);
           sprintf(full_path, "%s/%s", token, entry->d_name);
-          if (strcmp(entry->d_name, arg) == 0) {
+          if (access(full_path, X_OK) == 0 && strcmp(entry->d_name, arg) == 0) {
             printf("%s is %s/%s\n$ ", arg, token, entry->d_name);
             found = true;
             break;
