@@ -1,135 +1,105 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
-#include <sys/unistd.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <sys/wait.h>
 
 #define BUFFER_SIZE 1024
 
-char* builtin_commands[] = {"echo", "type", "exit"};
+const char *builtins[] = {"echo", "type", "exit", NULL};
 
-char* find_executable(char* cmd) {
-  char *PATH = getenv("PATH");
-  char *path = strdup(PATH);
-  char *token = strtok(path, ":");
-
-  while (token) {
-    DIR *dir = opendir(token);
-    if (dir == NULL) {
-      token = strtok(NULL, ":");
-      continue;
-    }
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-      char* full_path = malloc(strlen(token) + strlen(entry->d_name) + 2);
-      if (strcmp(entry->d_name, cmd) != 0) {
-        continue;
-      }
-      sprintf(full_path, "%s/%s", token, entry->d_name);
-      if (access(full_path, X_OK) == 0) {
-        return full_path;
-      }
-    }
-    token = strtok(NULL, ":");
-    closedir(dir);
+static int is_builtin(const char *cmd) {
+  for (int i = 0; builtins[i] != NULL; i++) {
+    if (strcmp(cmd, builtins[i]) == 0) return 1;
   }
-  free(token);
+  return 0;
+}
+
+static char *find_executable(const char *cmd) {
+  char *path_env = getenv("PATH");
+  if (path_env == NULL) return NULL;
+
+  char *path = strdup(path_env);
+  char *result = NULL;
+
+  for (char *dir = strtok(path, ":"); dir != NULL; dir = strtok(NULL, ":")) {
+    char full_path[BUFFER_SIZE];
+    snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
+    if (access(full_path, X_OK) == 0) {
+      result = strdup(full_path);
+      break;
+    }
+  }
+
   free(path);
-  free(token);
-  return NULL;
+  return result;
 }
 
-void echo_command(char *args) {
-  int start = 4;
-  while (args[start] == ' ') {
-    start++;
+static void echo_command(char *args[]) {
+  for (int i = 1; args[i] != NULL; i++) {
+    printf("%s%s", args[i], args[i + 1] != NULL ? " " : "");
   }
-  printf("%s", args + start);
+  printf("\n");
 }
 
-void type_command(char* cmd) {
-  if (strcmp(cmd, "echo") == 0 || strcmp(cmd, "type") == 0 || strcmp(cmd, "exit") == 0) {
+static void type_command(const char *cmd) {
+  if (is_builtin(cmd)) {
     printf("%s is a shell builtin\n", cmd);
-  } else if (find_executable(cmd) != NULL) {
-    printf("%s is %s\n", cmd, find_executable(cmd));
+    return;
+  }
+  char *path = find_executable(cmd);
+  if (path != NULL) {
+    printf("%s is %s\n", cmd, path);
+    free(path);
   } else {
     printf("%s: not found\n", cmd);
   }
 }
 
-void execute_command(char* cmd, char* args[]) {
-  char *executable_path = find_executable(cmd);
-  if (executable_path == NULL) {
-    printf("%s: command not found\n", cmd);
+static void execute_command(char *args[]) {
+  char *path = find_executable(args[0]);
+  if (path == NULL) {
+    printf("%s: command not found\n", args[0]);
     return;
   }
   pid_t pid = fork();
   if (pid == 0) {
-    execv(executable_path, args);
+    execv(path, args);
+    perror("execv");
     exit(1);
-  } else {
+  } else if (pid > 0) {
     waitpid(pid, NULL, 0);
+  } else {
+    perror("fork");
   }
+  free(path);
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
   setbuf(stdout, NULL);
-  char cmd[BUFFER_SIZE];
-  printf("$ ");
+  char line[BUFFER_SIZE];
 
-  char args[BUFFER_SIZE];
-  while (fgets(args, BUFFER_SIZE, stdin) != NULL) {
-    char cmd[BUFFER_SIZE];
-    sscanf(args, "%s", cmd);
-    if (strcmp(cmd, "exit") == 0) break;
-    else if (strcmp(cmd, "echo") == 0) echo_command(args);
-    else if (strcmp(cmd, "type") == 0) {
-      char arg[BUFFER_SIZE];
-      sscanf(args + strlen(cmd), "%s", arg);
-      type_command(arg);
-    } else if (find_executable(cmd) != NULL) {
-      char *args_array[BUFFER_SIZE];
-      args_array[0] = cmd;
-      int i = 1;
-      char *token = strtok(args + strlen(cmd), " \n");
-      while (token != NULL) {
-        args_array[i++] = token;
-        token = strtok(NULL, " \n");
-      }
-      args_array[i] = NULL;
-      execute_command(cmd, args_array);
-    } else {
-      printf("%s: command not found\n", cmd);
+  printf("$ ");
+  while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
+    line[strcspn(line, "\n")] = '\0';   // strip trailing newline
+
+    char *args[BUFFER_SIZE];
+    int n = 0;
+    for (char *tok = strtok(line, " "); tok != NULL; tok = strtok(NULL, " ")) {
+      args[n++] = tok;
     }
-    // if (strcmp(cmd, "exit") == 0) {
-    //   break;
-    // } else if (strcmp(cmd, "echo") == 0) {
-    //   echo_command();
-    // } else if (strcmp(cmd, "type") == 0) {
-    //   char arg[BUFFER_SIZE];
-    //   scanf("%s", arg);
-    //   if (strcmp(arg, "echo") == 0 || strcmp(arg, "type") == 0 || strcmp(arg, "exit") == 0) {
-    //     printf("%s is a shell builtin\n", arg);
-    //   } else if (find_executable(arg) != NULL) {
-    //     printf("%s is %s\n", arg, find_executable(arg));
-    //   } else {
-    //     printf("%s: not found\n", arg);
-    //   }
-    // } else if (find_executable(cmd) != NULL) {
-    //   char *executable_path = find_executable(cmd);
-    //   char *args[BUFFER_SIZE];
-    //   args[0] = NULL;
-    //   pid_t pid = fork();
-    //   if (pid == 0) {
-    //     execv(executable_path, args);
-    //   }
-    //   waitpid(pid, NULL, 0);
-    // } else {
-    //   printf("%s: command not found\n", cmd);
-    // }
+    args[n] = NULL;
+
+    if (n == 0) {
+      printf("$ ");
+      continue;
+    }
+
+    if (strcmp(args[0], "exit") == 0) break;
+    else if (strcmp(args[0], "echo") == 0) echo_command(args);
+    else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
+    else execute_command(args);
+
     printf("$ ");
   }
 
