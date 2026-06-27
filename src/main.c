@@ -46,7 +46,7 @@ static void echo_command(char *args[]) {
 static void cd_command(const char* path) {
   struct stat st;
   if (!(stat(path, &st) == 0 && S_ISDIR(st.st_mode))) {
-    printf("cd: %s: No such file or directory", path);
+    printf("cd: %s: No such file or directory\n", path);
     return ;
   }
 
