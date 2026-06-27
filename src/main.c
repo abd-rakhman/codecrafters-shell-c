@@ -42,6 +42,13 @@ static void echo_command(char *args[]) {
   printf("\n");
 }
 
+static void cd_command(const char* path) {
+  if (chdir(path) != 0) {
+    perror("cd");
+    return;
+  }
+}
+
 static void type_command(const char *cmd) {
   if (is_builtin(cmd)) {
     printf("%s is a shell builtin\n", cmd);
@@ -103,11 +110,11 @@ int main(void) {
       continue;
     }
 
-
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
     else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
     else if (strcmp(args[0], "pwd") == 0) pwd_command();
+    else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
     else execute_command(args);
 
     printf("$ ");
