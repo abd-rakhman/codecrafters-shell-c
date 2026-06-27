@@ -5,6 +5,7 @@
 #include <sys/unistd.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/wait.h>
 
 #define BUFFER_SIZE 1024
 
