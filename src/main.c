@@ -6,7 +6,7 @@
 
 #define BUFFER_SIZE 1024
 
-const char *builtins[] = {"echo", "type", "exit", NULL};
+const char *builtins[] = {"echo", "type", "exit", "pwd", NULL};
 
 static int is_builtin(const char *cmd) {
   for (int i = 0; builtins[i] != NULL; i++) {
