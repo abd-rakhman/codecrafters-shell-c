@@ -56,6 +56,14 @@ static void type_command(const char *cmd) {
   }
 }
 
+static void pwd_command() {
+  char cwd[1024];
+
+  if (getcwd(cwd, sizeof(cwd)) != NULL) {
+    printf("%s\n", cwd);
+  }
+}
+
 static void execute_command(char *args[]) {
   char *path = find_executable(args[0]);
   if (path == NULL) {
@@ -94,6 +102,7 @@ int main(void) {
       printf("$ ");
       continue;
     }
+
 
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
