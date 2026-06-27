@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         while ((entry = readdir(dir)) != NULL) {
           char* full_path = malloc(strlen(token) + strlen(entry->d_name) + 2);
           sprintf(full_path, "%s/%s", token, entry->d_name);
-          if (access(full_path, X_OK) == 0 && strcmp(entry->d_name, arg) == 0) {
+          if (strcmp(entry->d_name, arg) == 0) {
             printf("%s is %s/%s\n$ ", arg, token, entry->d_name);
             found = true;
             break;
