@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 #define BUFFER_SIZE 1024
 
@@ -100,12 +101,43 @@ int main(void) {
 
   printf("$ ");
   while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
-    line[strcspn(line, "\n")] = '\0';   // strip trailing newline
+    line[strcspn(line, "\n")] = '\0';
+
+    int n = 0, start = 0;
+    bool is_quote = false;
 
     char *args[BUFFER_SIZE];
-    int n = 0;
-    for (char *tok = strtok(line, " "); tok != NULL; tok = strtok(NULL, " ")) {
-      args[n++] = tok;
+    char *p = line;
+    for (; *p; p++) {
+      if (*p == '\'') {
+        if (is_quote) {
+          int end = p - line;
+          int length = end - 1 - start;
+          args[n] = malloc((length + 1) * sizeof(char));
+          memcpy(args[n++], line + start, end - start);
+        }
+        start = p - line + 1;
+        is_quote ^= 1;
+      } else if (*p == ' ') {
+        if (is_quote) {
+          continue;
+        } else {
+          if (start != p - line) {
+            int end = p - line;
+            int length = end - start;
+            args[n] = malloc((length + 1) * sizeof(char));
+            strncpy(args[n++], line + start, end - start);
+            printf("%s\n", args[n-1]);
+          }
+          start = p - line + 1;
+        }
+      }
+    }
+    if (*(line + start) != '\0') {
+      int end = p - line;
+      int length = end - start;
+      args[n] = malloc((length + 1) * sizeof(char)); 
+      strncpy(args[n++], line + start, end - start);
     }
     args[n] = NULL;
 
@@ -113,6 +145,7 @@ int main(void) {
       printf("$ ");
       continue;
     }
+    printf("\n\n\n");
 
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
