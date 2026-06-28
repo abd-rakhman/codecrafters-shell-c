@@ -104,20 +104,26 @@ int main(void) {
     line[strcspn(line, "\n")] = '\0';
 
     int n = 0, len = 0;
-    bool is_quote = false;
+    char *quote = NULL;
 
     char *args[BUFFER_SIZE];
     args[0] = malloc(BUFFER_SIZE * sizeof(char));
     for (char *p = line; *p; p++) {
-      if (*p == ' ' && !is_quote) {
+      if (*p == ' ' && !quote) {
         if (len > 0) {
           *(args[n] + len) = '\0';
           len = 0;
           n++;
           args[n] = malloc(BUFFER_SIZE * sizeof(char));
         }
-      } else if (*p == '\'') {
-        is_quote ^= 1;
+        continue;
+      } else if (*p == '\'' || *p == '\"') {
+        if (!quote) quote = p;
+        else if (*quote == *p) {
+          quote = NULL;
+        } else {
+          *(args[n] + len++) = *p;
+        }
       } else {
         *(args[n] + len++) = *p;
       }
