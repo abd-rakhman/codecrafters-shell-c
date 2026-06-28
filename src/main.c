@@ -119,11 +119,8 @@ int main(void) {
         continue;
       } else if (*p == '\'' || *p == '\"') {
         if (!quote) quote = p;
-        else if (*quote == *p) {
-          quote = NULL;
-        } else {
-          *(args[n] + len++) = *p;
-        }
+        else if (*quote == *p) quote = NULL;
+        else *(args[n] + len++) = *p;
       } else {
         *(args[n] + len++) = *p;
       }
