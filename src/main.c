@@ -121,6 +121,9 @@ int main(void) {
         if (!quote) quote = p;
         else if (*quote == *p) quote = NULL;
         else *(args[n] + len++) = *p;
+      } else if (*p == '\\') {
+          p++;
+          *(args[n] + len++) = *p;
       } else {
         *(args[n] + len++) = *p;
       }
