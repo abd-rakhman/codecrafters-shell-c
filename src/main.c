@@ -103,41 +103,27 @@ int main(void) {
   while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
     line[strcspn(line, "\n")] = '\0';
 
-    int n = 0, start = 0;
+    int n = 0, len = 0;
     bool is_quote = false;
 
     char *args[BUFFER_SIZE];
-    char *p = line;
-    for (; *p; p++) {
-      if (*p == '\'') {
-        if (is_quote) {
-          int end = p - line;
-          int length = end - 1 - start;
-          args[n] = malloc((length + 1) * sizeof(char));
-          memcpy(args[n++], line + start, end - start);
+    args[0] = malloc(BUFFER_SIZE * sizeof(char));
+    for (char *p = line; *p; p++) {
+      if (*p == ' ' && !is_quote) {
+        if (len > 0) {
+          *(args[n] + len) = '\0';
+          len = 0;
+          n++;
+          args[n] = malloc(BUFFER_SIZE * sizeof(char));
         }
-        start = p - line + 1;
+      } else if (*p == '\'') {
         is_quote ^= 1;
-      } else if (*p == ' ') {
-        if (is_quote) {
-          continue;
-        } else {
-          if (start != p - line) {
-            int end = p - line;
-            int length = end - start;
-            args[n] = malloc((length + 1) * sizeof(char));
-            strncpy(args[n++], line + start, end - start);
-            printf("%s\n", args[n-1]);
-          }
-          start = p - line + 1;
-        }
+      } else {
+        *(args[n] + len++) = *p;
       }
     }
-    if (*(line + start) != '\0') {
-      int end = p - line;
-      int length = end - start;
-      args[n] = malloc((length + 1) * sizeof(char)); 
-      strncpy(args[n++], line + start, end - start);
+    if (len > 0) {
+      *(args[n++] + len) = '\0';
     }
     args[n] = NULL;
 
