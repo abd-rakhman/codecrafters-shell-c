@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdbool.h>
+#include <fcntl.h>
 
 #define BUFFER_SIZE 1024
 
@@ -98,6 +99,7 @@ static void execute_command(char *args[]) {
 int main(void) {
   setbuf(stdout, NULL);
   char line[BUFFER_SIZE];
+  int stdout_fd = dup(1);
 
   printf("$ ");
   while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
@@ -138,6 +140,13 @@ int main(void) {
       continue;
     }
 
+    if (n > 2 && (strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], "1>") == 0)) {
+      int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+      dup2(fd, 1);
+      close(fd);
+      args[n-2] = NULL;
+    }
+
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
     else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
@@ -145,8 +154,11 @@ int main(void) {
     else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
     else execute_command(args);
 
+    dup2(stdout_fd, 1);
+
     printf("$ ");
   }
+  close(stdout_fd);
 
   return 0;
 }
