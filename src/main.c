@@ -131,7 +131,6 @@ int main(void) {
       printf("$ ");
       continue;
     }
-    printf("\n\n\n");
 
     if (strcmp(args[0], "exit") == 0) break;
     else if (strcmp(args[0], "echo") == 0) echo_command(args);
