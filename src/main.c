@@ -163,7 +163,7 @@ int main(void) {
         close(fd);
         args[n-2] = NULL;
         stdout_restore = true;
-      } else if (strcmp(args[n-2], ">>") == 0 || strcmp(args[n-2], "1>>") == 0) {
+      } else if (strcmp(args[n-2], "2>>") == 0) {
         int fd = open(args[n-1], O_WRONLY|O_CREAT, 0644);
         dup2(fd, 2);
         close(fd);
