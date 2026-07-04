@@ -100,6 +100,7 @@ int main(void) {
   setbuf(stdout, NULL);
   char line[BUFFER_SIZE];
   int stdout_fd = dup(1);
+  int stderr_fd = dup(2);
 
   printf("$ ");
   while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
@@ -139,12 +140,24 @@ int main(void) {
       printf("$ ");
       continue;
     }
+    bool stdout_restore = false;
+    bool stderr_restore = false;
 
-    if (n > 2 && (strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], "1>") == 0)) {
-      int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
-      dup2(fd, 1);
-      close(fd);
-      args[n-2] = NULL;
+
+    if (n > 2) {
+      if ((strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], "1>") == 0)) {
+        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+        dup2(fd, 1);
+        close(fd);
+        args[n-2] = NULL;
+        stdout_restore = true;
+      } else if (strcmp(args[n-2], "2>") == 0) {
+        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
+        dup2(fd, 2);
+        close(fd);
+        args[n-2] = NULL;
+        stderr_restore = true;
+      }
     }
 
     if (strcmp(args[0], "exit") == 0) break;
@@ -154,7 +167,8 @@ int main(void) {
     else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
     else execute_command(args);
 
-    dup2(stdout_fd, 1);
+    if (stdout_restore) dup2(stdout_fd, 1);
+    if (stderr_restore) dup2(stderr_fd, 2);
 
     printf("$ ");
   }
