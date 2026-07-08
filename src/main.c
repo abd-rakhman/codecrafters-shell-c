@@ -129,7 +129,12 @@ int main(void) {
           p++;
           *(args[n] + len++) = *p;
       } else {
-        *(args[n] + len++) = *p;
+        if (*p == '\t') {
+          if (strcmp(args[n], "ech") == 0) *(args[n] + len++) = 'o';
+          else if (strcmp(args[n], "exi") == 0) *(args[n] + len++) = 't';
+          else *(args[n] + len++) = *p;
+        } 
+        else *(args[n] + len++) = *p;
       }
     }
     if (len > 0) {
@@ -141,36 +146,21 @@ int main(void) {
       printf("$ ");
       continue;
     }
-    bool stdout_restore = false;
-    bool stderr_restore = false;
-
 
     if (n > 2) {
-      if (strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], "1>") == 0) {
-        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
-        dup2(fd, 1);
-        close(fd);
-        args[n-2] = NULL;
-        stdout_restore = true;
-      } else if (strcmp(args[n-2], "2>") == 0) {
-        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_TRUNC, 0644);
-        dup2(fd, 2);
-        close(fd);
-        args[n-2] = NULL;
-        stderr_restore = true;
-      } else if (strcmp(args[n-2], ">>") == 0 || strcmp(args[n-2], "1>>") == 0) {
-        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_APPEND, 0644);
-        dup2(fd, 1);
-        close(fd);
-        args[n-2] = NULL;
-        stdout_restore = true;
-      } else if (strcmp(args[n-2], "2>>") == 0) {
-        int fd = open(args[n-1], O_WRONLY|O_CREAT|O_APPEND, 0644);
-        dup2(fd, 2);
-        close(fd);
-        args[n-2] = NULL;
-        stderr_restore = true;
+      char *cmd = malloc(4 * sizeof(char));
+      if (strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], ">>") == 0) {
+        *cmd = '1';
+        *(cmd + 1) = '>'; *(cmd + 2) = '\0';
+        if (strlen(args[n-2]) == 2) *(cmd+2) = '>'; *(cmd + 3) = '\0';
       }
+      int code = *cmd - '0';
+      int command = strlen(cmd) == 3 ? O_WRONLY|O_CREAT|O_APPEND : O_WRONLY|O_CREAT|O_TRUNC;
+
+      int fd = open(args[n-1], command, 0644);
+      dup2(fd, code);
+      close(fd);
+      args[n-2] = NULL;
     }
 
     if (strcmp(args[0], "exit") == 0) break;
@@ -180,8 +170,8 @@ int main(void) {
     else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
     else execute_command(args);
 
-    if (stdout_restore) dup2(stdout_fd, 1);
-    if (stderr_restore) dup2(stderr_fd, 2);
+    dup2(stdout_fd, 1);
+    dup2(stderr_fd, 2);
 
     printf("$ ");
   }
