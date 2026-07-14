@@ -210,10 +210,12 @@ int main(void) {
     } else if (c == '\t') {
       if (strcmp(line, "ech") == 0) { 
         line[len++] = 'o';
-        printf("o");
+        line[len++] = ' ';
+        printf("o ");
       } else if (strcmp(line, "exi") == 0) { 
         line[len++] = 't';
-        printf("t");
+        line[len++] = ' ';
+        printf("t ");
       }
     } else {
       printf("%c", c);
