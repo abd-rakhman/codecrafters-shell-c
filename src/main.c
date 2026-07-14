@@ -6,10 +6,12 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <termios.h>
 
 #define BUFFER_SIZE 1024
 
 const char *builtins[] = {"echo", "type", "exit", "pwd", NULL};
+int stdout_fd, stderr_fd;
 
 static int is_builtin(const char *cmd) {
   for (int i = 0; builtins[i] != NULL; i++) {
@@ -97,85 +99,127 @@ static void execute_command(char *args[]) {
   free(path);
 }
 
-int main(void) {
-  setbuf(stdout, NULL);
-  char line[BUFFER_SIZE];
-  int stdout_fd = dup(1);
-  int stderr_fd = dup(2);
+static void configure_terminal() {
+  struct termios old, raw;
 
-  printf("$ ");
-  while (fgets(line, BUFFER_SIZE, stdin) != NULL) {
-    line[strcspn(line, "\n")] = '\0';
+  tcgetattr(STDIN_FILENO, &old);
+  raw = old;
 
-    int n = 0, len = 0;
-    char *quote = NULL;
+  raw.c_lflag &= ~(ICANON | ECHO);
 
-    char *args[BUFFER_SIZE];
-    args[0] = malloc(BUFFER_SIZE * sizeof(char));
-    for (char *p = line; *p; p++) {
-      if (*p == ' ' && !quote) {
-        if (len > 0) {
-          *(args[n] + len) = '\0';
-          len = 0;
-          n++;
-          args[n] = malloc(BUFFER_SIZE * sizeof(char));
-        }
-        continue;
-      } else if (*p == '\'' || *p == '\"') {
-        if (!quote) quote = p;
-        else if (*quote == *p) quote = NULL;
-        else *(args[n] + len++) = *p;
-      } else if (*p == '\\' && (!quote || *quote != '\'')) {
-          p++;
-          *(args[n] + len++) = *p;
-      } else {
-        if (*p == '\t') {
-          if (strcmp(args[n], "ech") == 0) *(args[n] + len++) = 'o';
-          else if (strcmp(args[n], "exi") == 0) *(args[n] + len++) = 't';
-          else *(args[n] + len++) = *p;
-        } 
-        else *(args[n] + len++) = *p;
+  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+}
+
+void execute(char line[]) {
+  int n = 0, len = 0;
+  char *quote = NULL;
+  char *args[BUFFER_SIZE];
+
+  args[0] = malloc(BUFFER_SIZE * sizeof(char));
+  for (char *p = line; *p; p++) {
+    if (*p == ' ' && !quote) {
+      if (len > 0) {
+        *(args[n] + len) = '\0';
+        len = 0;
+        n++;
+        args[n] = malloc(BUFFER_SIZE * sizeof(char));
       }
-    }
-    if (len > 0) {
-      *(args[n++] + len) = '\0';
-    }
-    args[n] = NULL;
-
-    if (n == 0) {
-      printf("$ ");
       continue;
+    } else if (*p == '\'' || *p == '\"') {
+      if (!quote) quote = p;
+      else if (*quote == *p) quote = NULL;
+      else *(args[n] + len++) = *p;
+    } else if (*p == '\\' && (!quote || *quote != '\'')) {
+        p++;
+        *(args[n] + len++) = *p;
+    } else {
+      if (*p == '\t') {
+        if (strcmp(args[n], "ech") == 0) *(args[n] + len++) = 'o';
+        else if (strcmp(args[n], "exi") == 0) *(args[n] + len++) = 't';
+        else *(args[n] + len++) = *p;
+      } 
+      else *(args[n] + len++) = *p;
     }
+  }
+  if (len > 0) {
+    *(args[n++] + len) = '\0';
+  }
+  args[n] = NULL;
 
-    if (n > 2) {
-      char *cmd = malloc(4 * sizeof(char));
-      if (strcmp(args[n-2], ">") == 0 || strcmp(args[n-2], ">>") == 0) {
-        *cmd = '1';
-        *(cmd + 1) = '>'; *(cmd + 2) = '\0';
-        if (strlen(args[n-2]) == 2) *(cmd+2) = '>'; *(cmd + 3) = '\0';
-      }
-      int code = *cmd - '0';
-      int command = strlen(cmd) == 3 ? O_WRONLY|O_CREAT|O_APPEND : O_WRONLY|O_CREAT|O_TRUNC;
+  if (n == 0) {
+    printf("$ ");
+    return;
+  }
+
+  if (n > 2) {
+    int code = 0;
+    bool truncate = false;
+
+    if (strcmp(args[n-2], "1>") == 0 || strcmp(args[n-2], ">") == 0) {
+      code = 1;
+    } else if (strcmp(args[n-2], "1>>") == 0 || strcmp(args[n-2], ">>") == 0) {
+      code = 1; truncate = true;
+    } else if (strcmp(args[n-2], "2>") == 0) {
+      code = 2;
+    } else if (strcmp(args[n-2], "2>>") == 0) {
+      code = 2; truncate = true;
+    }
+    if (code) {
+      int command = truncate ? O_WRONLY|O_CREAT|O_TRUNC : O_WRONLY|O_CREAT|O_APPEND;
 
       int fd = open(args[n-1], command, 0644);
       dup2(fd, code);
       close(fd);
       args[n-2] = NULL;
     }
+  }
 
-    if (strcmp(args[0], "exit") == 0) break;
-    else if (strcmp(args[0], "echo") == 0) echo_command(args);
-    else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
-    else if (strcmp(args[0], "pwd") == 0) pwd_command();
-    else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
-    else execute_command(args);
+  if (strcmp(args[0], "exit") == 0) exit(0);
+  else if (strcmp(args[0], "echo") == 0) echo_command(args);
+  else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
+  else if (strcmp(args[0], "pwd") == 0) pwd_command();
+  else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
+  else execute_command(args);
 
-    dup2(stdout_fd, 1);
-    dup2(stderr_fd, 2);
+  dup2(stdout_fd, 1);
+  dup2(stderr_fd, 2);
 
-    printf("$ ");
+  printf("$ ");
+}
+
+int main(void) {
+  configure_terminal();
+  setbuf(stdout, NULL);
+  stdout_fd = dup(1), stderr_fd = dup(2);
+  char line[BUFFER_SIZE];
+
+  printf("$ ");
+
+  int c, len = 0;
+  while ((c = getchar()) != EOF) {
+    if (c == 127 || c == 8) { // backspace || delete
+      if (len > 0) {
+        len--;
+        write(STDOUT_FILENO, "\b \b", 3);
+      }
+    } else if (c == '\n') {
+      printf("\n");
+      line[len++] = '\0';
+      execute(line);
+      len = 0;
+    } else if (c == '\t') {
+      if (strcmp(line, "ech") == 0) { 
+        line[len++] = 'o';
+        printf("o");
+      } else if (strcmp(line, "exi") == 0) { 
+        line[len++] = 't';
+        printf("t");
+      }
+    } else {
+      printf("%c", c);
+      line[len++] = c;
+    }
   }
   close(stdout_fd);
-
   return 0;
 }
