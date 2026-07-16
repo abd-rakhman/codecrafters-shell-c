@@ -198,7 +198,7 @@ int main(void) {
 
   int c, len = 0;
   while ((c = getchar()) != EOF) {
-    if (c == 127 || c == 8) { // backspace || delete
+    if (c == 127 || c == 8) {
       if (len > 0) {
         len--;
         write(STDOUT_FILENO, "\b \b", 3);
