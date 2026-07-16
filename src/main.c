@@ -167,7 +167,6 @@ void execute(char line[]) {
     if (code) {
       int command = truncate ? O_WRONLY|O_CREAT|O_TRUNC : O_WRONLY|O_CREAT|O_APPEND;
 
-      printf("Filename: %s\n", args[n-1]);
       int fd = open(args[n-1], command, 0644);
       dup2(fd, code);
       close(fd);
