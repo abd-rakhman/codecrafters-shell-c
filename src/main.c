@@ -158,14 +158,16 @@ void execute(char line[]) {
     if (strcmp(args[n-2], "1>") == 0 || strcmp(args[n-2], ">") == 0) {
       code = 1;
     } else if (strcmp(args[n-2], "1>>") == 0 || strcmp(args[n-2], ">>") == 0) {
-      code = 1; truncate = true;
+      code = 1;
+      truncate = true;
     } else if (strcmp(args[n-2], "2>") == 0) {
       code = 2;
     } else if (strcmp(args[n-2], "2>>") == 0) {
-      code = 2; truncate = true;
+      code = 2; 
+      truncate = true;
     }
     if (code) {
-      int command = truncate ? O_WRONLY|O_CREAT|O_TRUNC : O_WRONLY|O_CREAT|O_APPEND;
+      int command = truncate ? (O_WRONLY|O_CREAT|O_APPEND) : (O_WRONLY|O_CREAT|O_TRUNC);
 
       int fd = open(args[n-1], command, 0644);
       dup2(fd, code);
