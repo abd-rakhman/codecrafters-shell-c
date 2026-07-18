@@ -133,12 +133,7 @@ void execute(char line[]) {
         p++;
         *(args[n] + len++) = *p;
     } else {
-      if (*p == '\t') {
-        if (strcmp(args[n], "ech") == 0) *(args[n] + len++) = 'o';
-        else if (strcmp(args[n], "exi") == 0) *(args[n] + len++) = 't';
-        else *(args[n] + len++) = *p;
-      } 
-      else *(args[n] + len++) = *p;
+      *(args[n] + len++) = *p;
     }
   }
   if (len > 0) {
