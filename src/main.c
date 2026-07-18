@@ -213,6 +213,9 @@ int main(void) {
         line[len++] = 't';
         line[len++] = ' ';
         printf("t ");
+      } else {
+        printf("\a");
+
       }
     } else {
       printf("%c", c);
