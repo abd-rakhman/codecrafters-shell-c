@@ -278,7 +278,7 @@ int main(void) {
       TrieResult *result = trie_autocomplete(executables_trie, word);
 
 
-      if (result->count == 1) {
+      if (result->count > 0) {
         for (char *p = result->results[0]; *p; p++) {
           line[len++] = *p;
           printf("%c", *p);
