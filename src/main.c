@@ -244,7 +244,7 @@ int main(void) {
   TrieResult *result = trie_autocomplete(executables_trie, "ec");
   // printf("%d %s", result->count, result->results[0]);
 
-  char **executables = malloc(BUFFER_SIZE * sizeof(char*));
+  char **executables = malloc(256 * BUFFER_SIZE * sizeof(char*));
   int *executables_count = malloc(sizeof(int));
   *executables_count = 0;
   find_all_executables(executables_count, executables);
