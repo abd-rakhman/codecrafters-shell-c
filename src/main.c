@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <dirent.h>
+#include "trie.h"
 
 #define BUFFER_SIZE 1024
 
@@ -38,6 +40,33 @@ static char *find_executable(const char *cmd) {
 
   free(path);
   return result;
+}
+
+static void find_all_executables(int *count, char **executables) {
+  char *path_env = getenv("PATH");
+  if (path_env == NULL) return ;
+
+  char *path = strdup(path_env);
+
+  for (char *dir_path = strtok(path, ":"); dir_path != NULL; dir_path = strtok(NULL, ":")) {
+    DIR *dir = opendir(dir_path);
+
+    if (dir == NULL) {
+        perror("opendir");
+        return ;
+    }
+
+    struct dirent *entry;
+
+    while ((entry = readdir(dir)) != NULL) {
+      if (entry->d_type != DT_REG) continue;
+      executables[*count] = malloc(BUFFER_SIZE * sizeof(char));
+      strcpy(executables[*count], entry->d_name);
+      *count = *count + 1;
+    }
+  }
+
+  free(path);
 }
 
 static void echo_command(char *args[]) {
@@ -183,12 +212,43 @@ void execute(char line[]) {
 
   printf("$ ");
 }
+void reverse(char *str) {
+    size_t left = 0;
+    size_t right = strlen(str);
+
+    if (right == 0)
+        return;
+
+    right--;
+
+    while (left < right) {
+        char tmp = str[left];
+        str[left] = str[right];
+        str[right] = tmp;
+        left++;
+        right--;
+    }
+}
 
 int main(void) {
+  Trie *executables_trie = trie_create();
   configure_terminal();
   setbuf(stdout, NULL);
   stdout_fd = dup(1), stderr_fd = dup(2);
   char line[BUFFER_SIZE];
+
+  trie_add(executables_trie, "echo");
+  trie_add(executables_trie, "exit");
+  TrieResult *result = trie_autocomplete(executables_trie, "ec");
+  // printf("%d %s", result->count, result->results[0]);
+
+  char **executables = malloc(BUFFER_SIZE * sizeof(char*));
+  int *executables_count = malloc(sizeof(int));
+  *executables_count = 0;
+  find_all_executables(executables_count, executables);
+  for (int i = 0; i < *executables_count; i++) {
+    trie_add(executables_trie, executables[i]);
+  }
 
   printf("$ ");
 
@@ -205,18 +265,38 @@ int main(void) {
       execute(line);
       len = 0;
     } else if (c == '\t') {
-      if (strcmp(line, "ech") == 0) { 
-        line[len++] = 'o';
+      char *word = malloc(BUFFER_SIZE * sizeof(char));
+      int word_pos = 0;
+      int pos = len-1;
+      while(pos >= 0 && line[pos] != ' ') {
+        word[word_pos] = line[pos];
+        pos--, word_pos++;
+      }
+      word[word_pos] = '\0';
+      reverse(word);
+      TrieResult *result = trie_autocomplete(executables_trie, word);
+
+
+      if (result->count == 1) {
+        for (char *p = result->results[0]; *p; p++) {
+          line[len++] = *p;
+          printf("%c", *p);
+        }
         line[len++] = ' ';
-        printf("o ");
-      } else if (strcmp(line, "exi") == 0) { 
-        line[len++] = 't';
-        line[len++] = ' ';
-        printf("t ");
+        printf(" ");
       } else {
         printf("\a");
-
       }
+      // if (strcmp(line, "ech") == 0) { 
+      //   line[len++] = 'o';
+      //   line[len++] = ' ';
+      //   printf("o ");
+      // } else if (strcmp(line, "exi") == 0) { 
+      //   line[len++] = 't';
+      //   line[len++] = ' ';
+      //   printf("t ");
+      // } else {
+      // }
     } else {
       printf("%c", c);
       line[len++] = c;
