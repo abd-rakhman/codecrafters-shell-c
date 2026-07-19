@@ -49,6 +49,8 @@ static void find_all_executables(int *count, char **executables) {
   char *path = strdup(path_env);
 
   for (char *dir_path = strtok(path, ":"); dir_path != NULL; dir_path = strtok(NULL, ":")) {
+    if (dir_path[0] == '\0') continue;
+
     DIR *dir = opendir(dir_path);
     if (dir == NULL) {
         continue;
@@ -57,11 +59,12 @@ static void find_all_executables(int *count, char **executables) {
     struct dirent *entry;
 
     while ((entry = readdir(dir)) != NULL) {
-      if (entry->d_type != DT_REG) continue;
+      if (entry->d_type != DT_REG && entry->d_type != DT_LNK && entry->d_type != DT_UNKNOWN) continue;
       executables[*count] = malloc(BUFFER_SIZE * sizeof(char));
       strcpy(executables[*count], entry->d_name);
       *count = *count + 1;
     }
+    closedir(dir);
   }
 
   free(path);
