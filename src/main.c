@@ -50,10 +50,8 @@ static void find_all_executables(int *count, char **executables) {
 
   for (char *dir_path = strtok(path, ":"); dir_path != NULL; dir_path = strtok(NULL, ":")) {
     DIR *dir = opendir(dir_path);
-
     if (dir == NULL) {
-        perror("opendir");
-        return ;
+        continue;
     }
 
     struct dirent *entry;
@@ -236,6 +234,7 @@ int main(void) {
   setbuf(stdout, NULL);
   stdout_fd = dup(1), stderr_fd = dup(2);
   char line[BUFFER_SIZE];
+  printf("$ ");
 
   trie_add(executables_trie, "echo");
   trie_add(executables_trie, "exit");
@@ -250,7 +249,6 @@ int main(void) {
     trie_add(executables_trie, executables[i]);
   }
 
-  printf("$ ");
 
   int c, len = 0;
   while ((c = getchar()) != EOF) {
