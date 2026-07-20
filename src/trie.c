@@ -75,7 +75,7 @@ TrieResult *trie_autocomplete(Trie *trie, const char *str) {
     node = next;
   }
 
-  char *suffix = malloc(BUFFER_SIZE * sizeof(char));
+  char *suffix = calloc(BUFFER_SIZE, sizeof(char));
   dfs(node, trie_result, suffix);
   qsort(trie_result->results, trie_result->count, sizeof(trie_result->results[0]), compare);
   return trie_result;
