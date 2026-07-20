@@ -300,6 +300,7 @@ static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
     }
     if (prefix_len == 0) {
       *tabbed = true;
+      printf("\a");
     } else {
       for (int j = 0; j < prefix_len; j++) {
          line[(*len)++] = result->results[0][j];
