@@ -7,8 +7,7 @@
 #define BUFFER_SIZE 1024
 
 typedef struct Node {
-  struct Node *next[256];
-  int count;
+  struct Node *next[ALPHABET_SIZE];
   bool complete;
 } Node;
 
@@ -25,50 +24,46 @@ Trie *trie_create(void) {
 void trie_add(Trie *trie, const char *str) {
   Node *node = trie->root;
   for (const char *p = str; *p; p++) {
-    node->count++;
-    if (node->next[*p] == NULL) {
+    unsigned char c = (unsigned char)*p;
+    if (node->next[c] == NULL) {
       Node *next = calloc(1, sizeof(Node));
-      node->next[*p] = next;
+      node->next[c] = next;
     }
-    node = node->next[*p];
+    node = node->next[c];
   }
-  node->count++;
   node->complete = true;
 }
 
-void dfs(Node *node, TrieResult *res, char* suffix) {
-  if (node -> complete) {
-    res->results[res->count] = malloc(BUFFER_SIZE * sizeof(char));
-    strcpy(res->results[res->count], suffix);
+static void search_completions(Node *node, TrieResult *res, char *suffix) {
+  if (node->complete) {
+    res->results[res->count] = strdup(suffix);
     res->count++;
   }
 
   for (int i = 0; i < ALPHABET_SIZE; i++) {
-    if (node -> next[i]) {
-      char *next_suffix = malloc(BUFFER_SIZE * sizeof(char));
-      strcpy(next_suffix, suffix);
-      size_t len = strlen(next_suffix);
-      next_suffix[len] = i;
-      next_suffix[len+1] = '\0';
-      dfs(node -> next[i], res, next_suffix);
-      free(next_suffix);
+    if (node->next[i]) {
+      size_t len = strlen(suffix);
+      suffix[len] = (char)i;
+      suffix[len + 1] = '\0';
+      search_completions(node->next[i], res, suffix);
+      suffix[len] = '\0';
     }
   }
 }
 
-int compare(const void *a, const void *b) {
-    return strcmp((const char *)a, (const char *)b);
+static int compare(const void *a, const void *b) {
+    return strcmp(*(const char**)a, *(const char**)b);
 }
 
 
 TrieResult *trie_autocomplete(Trie *trie, const char *str) {
   TrieResult *trie_result = malloc(sizeof(TrieResult));
   trie_result->count = 0;
-  trie_result->results = malloc(BUFFER_SIZE * sizeof(char*));
+  trie_result->results = malloc(BUFFER_SIZE * sizeof(char *));
 
   Node *node = trie->root;
   for (const char *p = str; *p; p++) {
-    Node *next = node->next[*p];
+    Node *next = node->next[(unsigned char)*p];
     if (next == NULL) {
       return trie_result;
     }
@@ -76,18 +71,32 @@ TrieResult *trie_autocomplete(Trie *trie, const char *str) {
   }
 
   char *suffix = calloc(BUFFER_SIZE, sizeof(char));
-  dfs(node, trie_result, suffix);
+  search_completions(node, trie_result, suffix);
+  free(suffix);
   qsort(trie_result->results, trie_result->count, sizeof(trie_result->results[0]), compare);
   return trie_result;
 }
 
-void trie_destroy(Trie *trie) {
-  // TODO: complete it
+static void destroy_node(Node *node) {
+  for (int i = 0; i < ALPHABET_SIZE; i++) {
+    if (node->next[i] != NULL) {
+      destroy_node(node->next[i]);
+    }
+  }
+  free(node);
+}
 
+void trie_destroy(Trie *trie) {
+  if (trie == NULL) return;
+  if (trie->root) destroy_node(trie->root);
+  free(trie);
 }
 
 void trie_result_destroy(TrieResult* trie_result) {
-  // TODO: complete it
-
+  for (int i = 0; i < trie_result->count; i++) {
+    free(trie_result->results[i]);
+  }
+  free(trie_result->results);
+  free(trie_result);
 }
 
