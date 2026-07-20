@@ -236,13 +236,11 @@ int main(void) {
   configure_terminal();
   setbuf(stdout, NULL);
   stdout_fd = dup(1), stderr_fd = dup(2);
-  char line[BUFFER_SIZE];
   printf("$ ");
 
   trie_add(executables_trie, "echo");
   trie_add(executables_trie, "exit");
   TrieResult *result = trie_autocomplete(executables_trie, "ec");
-  // printf("%d %s", result->count, result->results[0]);
 
   char **executables = malloc(256 * BUFFER_SIZE * sizeof(char*));
   int *executables_count = malloc(sizeof(int));
@@ -252,8 +250,9 @@ int main(void) {
     trie_add(executables_trie, executables[i]);
   }
 
-
+  char line[BUFFER_SIZE];
   int c, len = 0;
+  bool tabbed = false;
   while ((c = getchar()) != EOF) {
     if (c == 127 || c == 8) {
       if (len > 0) {
@@ -277,8 +276,20 @@ int main(void) {
       reverse(word);
       TrieResult *result = trie_autocomplete(executables_trie, word);
 
+      if (tabbed == true) {
+        tabbed = false;
+        printf("\n");
+        bool previous = false;
+        for (int i = 0; i < result->count; i++) {
+          if (previous) printf("  ");
+          printf("%s%s", word, result->results[i]);
+          previous = true;
+        }
+        printf("\n$ %s", line);
+        continue;
+      }
 
-      if (result->count > 0) {
+      if (result->count == 1) {
         for (char *p = result->results[0]; *p; p++) {
           line[len++] = *p;
           printf("%c", *p);
@@ -287,21 +298,14 @@ int main(void) {
         printf(" ");
       } else {
         printf("\a");
+        tabbed = true;
+        continue;
       }
-      // if (strcmp(line, "ech") == 0) { 
-      //   line[len++] = 'o';
-      //   line[len++] = ' ';
-      //   printf("o ");
-      // } else if (strcmp(line, "exi") == 0) { 
-      //   line[len++] = 't';
-      //   line[len++] = ' ';
-      //   printf("t ");
-      // } else {
-      // }
     } else {
       printf("%c", c);
       line[len++] = c;
     }
+    tabbed = false;
   }
   close(stdout_fd);
   return 0;

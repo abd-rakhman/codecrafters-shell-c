@@ -56,6 +56,11 @@ void dfs(Node *node, TrieResult *res, char* suffix) {
   }
 }
 
+int compare(const void *a, const void *b) {
+    return strcmp((const char *)a, (const char *)b);
+}
+
+
 TrieResult *trie_autocomplete(Trie *trie, const char *str) {
   TrieResult *trie_result = malloc(sizeof(TrieResult));
   trie_result->count = 0;
@@ -72,6 +77,7 @@ TrieResult *trie_autocomplete(Trie *trie, const char *str) {
 
   char *suffix = malloc(BUFFER_SIZE * sizeof(char));
   dfs(node, trie_result, suffix);
+  qsort(trie_result->results, trie_result->count, sizeof(trie_result->results[0]), compare);
   return trie_result;
 }
 
