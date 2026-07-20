@@ -287,7 +287,7 @@ static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
     printf("\a");
   } else {
     int prefix_len = strlen(result->results[0]);
-    for (int i = 0; i < result->count; i++) {
+    for (int i = 1; i < result->count; i++) {
       char *str = result->results[i];
       if (strlen(str) < prefix_len) prefix_len = strlen(str);
       for (int j = 0; j < prefix_len; j++) {
