@@ -240,6 +240,9 @@ int main(void) {
 
   trie_add(executables_trie, "echo");
   trie_add(executables_trie, "exit");
+  trie_add(executables_trie, "xyz_ant");
+  trie_add(executables_trie, "xyz_fox");
+  trie_add(executables_trie, "xyz_owl");
   TrieResult *result = trie_autocomplete(executables_trie, "ec");
 
   char **executables = malloc(256 * BUFFER_SIZE * sizeof(char*));
