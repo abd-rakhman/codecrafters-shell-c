@@ -109,12 +109,10 @@ static void find_possible_files(char *prefix, int *count, char **suffix) {
     if (strncmp(name, prefix, prefix_len) != 0) continue;
     if (name[prefix_len] == '\0') {
       continue;
-
     }
 
     suffix[*count] = malloc((strlen(name) + 1) * sizeof(char));
     strcpy(suffix[*count], name + prefix_len);
-    printf("type: %d %d", entry->d_type, DT_DIR);
     if (entry->d_type == DT_DIR) {
       suffix[*count][strlen(suffix[*count])] = '/';
       suffix[*count][strlen(suffix[*count])] = '\0';
