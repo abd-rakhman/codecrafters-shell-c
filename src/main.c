@@ -109,6 +109,8 @@ static void find_possible_files(char *prefix, int *count, char **suffix) {
     if (name[prefix_len] == '\0') continue; /* exact match: nothing to append */
 
     suffix[*count] = strdup(name + prefix_len);
+    suffix[*count][strlen(suffix[*count])] = '/';
+    suffix[*count][strlen(suffix[*count])] = '\0';
     (*count)++;
   }
   closedir(dir);
@@ -319,8 +321,10 @@ static void handle_autocomplete(char *line, int *len, char *word, bool *tabbed, 
       line[(*len)++] = *p;
       printf("%c", *p);
     }
-    line[(*len)++] = ' ';
-    printf(" ");
+    if (line[(*len) - 1] != '/') {
+      line[(*len)++] = ' ';
+      printf(" ");
+    }
     *tabbed = false;
   } else if (*count == 0) {
     printf("\a");
