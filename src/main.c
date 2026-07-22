@@ -355,7 +355,7 @@ static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
   current_word(line, *len, word);
 
 
-  if ((strncmp(line, "cat", strlen("cat")) == 0 && *len >= 4) || (strncmp(line, "echo", strlen("echo")) == 0 && *len >= 5) || (strncmp(line, "stat", strlen("stat")) == 0 && *len >= 5)) {
+  if (strchr(line, ' ')) {
     int *count = malloc(sizeof(int));
     char **suffices = malloc(BUFFER_SIZE * sizeof(char*));
     find_possible_files(word, count, suffices);
