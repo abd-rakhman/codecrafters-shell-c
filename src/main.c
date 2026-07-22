@@ -108,7 +108,8 @@ static void find_possible_files(char *prefix, int *count, char **suffix) {
     if (strncmp(name, prefix, prefix_len) != 0) continue;
     if (name[prefix_len] == '\0') continue; /* exact match: nothing to append */
 
-    suffix[*count] = strdup(name + prefix_len);
+    suffix[*count] = malloc((strlen(name) + 1) * sizeof(char));
+    strcpy(suffix[*count], name + prefix_len);
     suffix[*count][strlen(suffix[*count])] = '/';
     suffix[*count][strlen(suffix[*count])] = '\0';
     (*count)++;
