@@ -97,15 +97,19 @@ static void find_possible_files(char *prefix, int *count, char **suffix) {
   struct dirent *entry;
   while ((entry = readdir(dir)) != NULL) {
     const char *name = entry->d_name;
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+        continue;
     size_t prefix_len = strlen(prefix);
-    printf("Len: %d\n", prefix_len);
+    if (prefix_len == 0) {
+      suffix[*count] = strdup(name);
+      (*count)++;
+      continue;
+    }
     if (strncmp(name, prefix, prefix_len) != 0) continue;
     if (name[prefix_len] == '\0') continue; /* exact match: nothing to append */
 
     suffix[*count] = strdup(name + prefix_len);
-    if (suffix[*count] != NULL) {
-      (*count)++;
-    }
+    (*count)++;
   }
   closedir(dir);
 }
