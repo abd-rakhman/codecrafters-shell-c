@@ -71,45 +71,39 @@ static void find_all_executables(int *count, char **executables) {
 }
 
 static void find_possible_files(char *prefix, int *count, char **suffix) {
+  *count = 0;
+
   char *lastSlash = strrchr(prefix, '/');
   char *path;
   if (lastSlash == NULL) {
-    path = malloc(4 * sizeof(char));
+    path = malloc(2);
+    if (path == NULL) return;
     strcpy(path, ".");
   } else {
-    size_t len = lastSlash - prefix;
+    size_t len = (size_t)(lastSlash - prefix);
     path = malloc(len + 1);
-
+    if (path == NULL) return;
     memcpy(path, prefix, len);
-    prefix = lastSlash+1;
     path[len] = '\0';
+    prefix = lastSlash + 1;
   }
 
   DIR *dir = opendir(path);
+  free(path);
   if (dir == NULL) {
-    return ;
+    return;
   }
 
   struct dirent *entry;
-
   while ((entry = readdir(dir)) != NULL) {
-    char *file_ptr = entry->d_name;
-    char *prefix_ptr = prefix;
-    while (*prefix_ptr != '\0' && *file_ptr != '\0' && *file_ptr == *prefix_ptr) {
-      file_ptr++;
-      prefix_ptr++;
-    }
-    if (*prefix_ptr == '\0' && *file_ptr != '\0') {
-      suffix[*count] = malloc(BUFFER_SIZE * sizeof(char));
-      char *new_ptr = suffix[*count];
-      while (*file_ptr != '\0') {
-        *new_ptr = *file_ptr;
-        file_ptr++, new_ptr++;
-      }
-      *new_ptr = '\0';
-      *count = *count + 1;
-    } else {
-      continue;
+    const char *name = entry->d_name;
+    size_t prefix_len = strlen(prefix);
+    if (strncmp(name, prefix, prefix_len) != 0) continue;
+    if (name[prefix_len] == '\0') continue; /* exact match: nothing to append */
+
+    suffix[*count] = strdup(name + prefix_len);
+    if (suffix[*count] != NULL) {
+      (*count)++;
     }
   }
   closedir(dir);
@@ -350,68 +344,35 @@ static void handle_autocomplete(char *line, int *len, char *word, bool *tabbed, 
   }
 }
 
+static int line_has_space(const char *line, int len) {
+  for (int i = 0; i < len; i++) {
+    if (line[i] == ' ') return 1;
+  }
+  return 0;
+}
+
 static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
   char word[BUFFER_SIZE];
   current_word(line, *len, word);
 
-
-  if (strchr(line, ' ')) {
-    int *count = malloc(sizeof(int));
-    char **suffices = malloc(BUFFER_SIZE * sizeof(char*));
-    find_possible_files(word, count, suffices);
-    handle_autocomplete(line, len, word, tabbed, count, suffices);
-    for (int i = 0; i < *count; i++) {
+  if (line_has_space(line, *len)) {
+    int count = 0;
+    char **suffices = malloc(BUFFER_SIZE * sizeof(char *));
+    if (suffices == NULL) {
+      printf("\a");
+      return;
+    }
+    find_possible_files(word, &count, suffices);
+    handle_autocomplete(line, len, word, tabbed, &count, suffices);
+    for (int i = 0; i < count; i++) {
       free(suffices[i]);
     }
-    free(count);
+    free(suffices);
   } else {
     TrieResult *result = trie_autocomplete(trie, word);
     handle_autocomplete(line, len, word, tabbed, &result->count, result->results);
-
     trie_result_destroy(result);
   }
-
-  // if (*tabbed) {
-  //   printf("\n");
-  //   for (int i = 0; i < result->count; i++) {
-  //     if (i > 0) printf("  ");
-  //     printf("%s%s", word, result->results[i]);
-  //   }
-  //   printf("\n$ %s", line);
-  //   *tabbed = false;
-  // } else if (result->count == 1) {
-  //   for (char *p = result->results[0]; *p; p++) {
-  //     line[(*len)++] = *p;
-  //     printf("%c", *p);
-  //   }
-  //   line[(*len)++] = ' ';
-  //   printf(" ");
-  //   *tabbed = false;
-  // } else if (result->count == 0) {
-  //   printf("\a");
-  // } else {
-  //   int prefix_len = strlen(result->results[0]);
-  //   for (int i = 1; i < result->count; i++) {
-  //     char *str = result->results[i];
-  //     if (strlen(str) < prefix_len) prefix_len = strlen(str);
-  //     for (int j = 0; j < prefix_len; j++) {
-  //       if (str[j] != result->results[0][j]) {
-  //         prefix_len = j;
-  //         break;
-  //       }
-  //     }
-  //     if (prefix_len == 0) break;
-  //   }
-  //   if (prefix_len == 0) {
-  //     *tabbed = true;
-  //     printf("\a");
-  //   } else {
-  //     for (int j = 0; j < prefix_len; j++) {
-  //        line[(*len)++] = result->results[0][j];
-  //        printf("%c", result->results[0][j]);
-  //     }
-  //   }
-  // }
 }
 
 static Trie *build_executables_trie(void) {
