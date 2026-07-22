@@ -70,6 +70,51 @@ static void find_all_executables(int *count, char **executables) {
   free(path);
 }
 
+static void find_possible_files(char *prefix, int *count, char **suffix) {
+  char *lastSlash = strrchr(prefix, '/');
+  char *path;
+  if (lastSlash == NULL) {
+    path = malloc(4 * sizeof(char));
+    strcpy(path, ".");
+  } else {
+    size_t len = lastSlash - prefix;
+    path = malloc(len + 1);
+
+    memcpy(path, prefix, len);
+    prefix = lastSlash+1;
+    path[len] = '\0';
+  }
+
+  DIR *dir = opendir(path);
+  if (dir == NULL) {
+    return ;
+  }
+
+  struct dirent *entry;
+
+  while ((entry = readdir(dir)) != NULL) {
+    char *file_ptr = entry->d_name;
+    char *prefix_ptr = prefix;
+    while (*prefix_ptr != '\0' && *file_ptr != '\0' && *file_ptr == *prefix_ptr) {
+      file_ptr++;
+      prefix_ptr++;
+    }
+    if (*prefix_ptr == '\0' && *file_ptr != '\0') {
+      suffix[*count] = malloc(BUFFER_SIZE * sizeof(char));
+      char *new_ptr = suffix[*count];
+      while (*file_ptr != '\0') {
+        *new_ptr = *file_ptr;
+        file_ptr++, new_ptr++;
+      }
+      *new_ptr = '\0';
+      *count = *count + 1;
+    } else {
+      continue;
+    }
+  }
+  closedir(dir);
+}
+
 static void echo_command(char *args[]) {
   for (int i = 1; args[i] != NULL; i++) {
     printf("%s%s", args[i], args[i + 1] != NULL ? " " : "");
@@ -261,37 +306,32 @@ static void handle_char(char *line, int *len, int c) {
   line[(*len)++] = c;
 }
 
-static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
-  char word[BUFFER_SIZE];
-  current_word(line, *len, word);
-
-  TrieResult *result = trie_autocomplete(trie, word);
-
+static void handle_autocomplete(char *line, int *len, char *word, bool *tabbed, int *count, char** suffices) {
   if (*tabbed) {
     printf("\n");
-    for (int i = 0; i < result->count; i++) {
+    for (int i = 0; i < *count; i++) {
       if (i > 0) printf("  ");
-      printf("%s%s", word, result->results[i]);
+      printf("%s%s", word, suffices[i]);
     }
     printf("\n$ %s", line);
     *tabbed = false;
-  } else if (result->count == 1) {
-    for (char *p = result->results[0]; *p; p++) {
+  } else if (*count == 1) {
+    for (char *p = suffices[0]; *p; p++) {
       line[(*len)++] = *p;
       printf("%c", *p);
     }
     line[(*len)++] = ' ';
     printf(" ");
     *tabbed = false;
-  } else if (result->count == 0) {
+  } else if (*count == 0) {
     printf("\a");
   } else {
-    int prefix_len = strlen(result->results[0]);
-    for (int i = 1; i < result->count; i++) {
-      char *str = result->results[i];
+    int prefix_len = strlen(suffices[0]);
+    for (int i = 1; i < *count; i++) {
+      char *str = suffices[i];
       if (strlen(str) < prefix_len) prefix_len = strlen(str);
       for (int j = 0; j < prefix_len; j++) {
-        if (str[j] != result->results[0][j]) {
+        if (str[j] != suffices[0][j]) {
           prefix_len = j;
           break;
         }
@@ -303,20 +343,80 @@ static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
       printf("\a");
     } else {
       for (int j = 0; j < prefix_len; j++) {
-         line[(*len)++] = result->results[0][j];
-         printf("%c", result->results[0][j]);
+         line[(*len)++] = suffices[0][j];
+         printf("%c", suffices[0][j]);
       }
     }
   }
+}
 
-  trie_result_destroy(result);
+static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
+  char word[BUFFER_SIZE];
+  current_word(line, *len, word);
+
+
+  if ((strncmp(line, "cat", strlen("cat")) == 0 && *len >= 4) || (strncmp(line, "echo", strlen("echo")) == 0 && *len >= 5)) {
+    int *count = malloc(sizeof(int));
+    char **suffices = malloc(BUFFER_SIZE * sizeof(char*));
+    find_possible_files(word, count, suffices);
+    handle_autocomplete(line, len, word, tabbed, count, suffices);
+    for (int i = 0; i < *count; i++) {
+      free(suffices[i]);
+    }
+    free(count);
+  } else {
+    TrieResult *result = trie_autocomplete(trie, word);
+    handle_autocomplete(line, len, word, tabbed, &result->count, result->results);
+
+    trie_result_destroy(result);
+  }
+
+  // if (*tabbed) {
+  //   printf("\n");
+  //   for (int i = 0; i < result->count; i++) {
+  //     if (i > 0) printf("  ");
+  //     printf("%s%s", word, result->results[i]);
+  //   }
+  //   printf("\n$ %s", line);
+  //   *tabbed = false;
+  // } else if (result->count == 1) {
+  //   for (char *p = result->results[0]; *p; p++) {
+  //     line[(*len)++] = *p;
+  //     printf("%c", *p);
+  //   }
+  //   line[(*len)++] = ' ';
+  //   printf(" ");
+  //   *tabbed = false;
+  // } else if (result->count == 0) {
+  //   printf("\a");
+  // } else {
+  //   int prefix_len = strlen(result->results[0]);
+  //   for (int i = 1; i < result->count; i++) {
+  //     char *str = result->results[i];
+  //     if (strlen(str) < prefix_len) prefix_len = strlen(str);
+  //     for (int j = 0; j < prefix_len; j++) {
+  //       if (str[j] != result->results[0][j]) {
+  //         prefix_len = j;
+  //         break;
+  //       }
+  //     }
+  //     if (prefix_len == 0) break;
+  //   }
+  //   if (prefix_len == 0) {
+  //     *tabbed = true;
+  //     printf("\a");
+  //   } else {
+  //     for (int j = 0; j < prefix_len; j++) {
+  //        line[(*len)++] = result->results[0][j];
+  //        printf("%c", result->results[0][j]);
+  //     }
+  //   }
+  // }
 }
 
 static Trie *build_executables_trie(void) {
   Trie *trie = trie_create();
   for (int i = 0; builtins[i] != NULL; i++) trie_add(trie, builtins[i]);
-  // trie_add(trie, "xyz_hello_back");
-  // trie_add(trie, "xyz_hello_front");
 
   char **executables = malloc(256 * BUFFER_SIZE * sizeof(char *));
   int *executables_count = malloc(sizeof(int));
