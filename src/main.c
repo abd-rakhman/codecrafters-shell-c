@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdbool.h>
@@ -320,7 +322,9 @@ static void handle_autocomplete(char *line, int *len, char *word, bool *tabbed, 
     printf("\n");
     for (int i = 0; i < *count; i++) {
       if (i > 0) printf("  ");
-      printf("%s%s", word, suffices[i]);
+      char *lastSlash = strrchr(word, '/');
+
+      printf("%s%s", (lastSlash == NULL ? word : lastSlash+1), suffices[i]);
     }
     printf("\n$ %s", line);
     *tabbed = false;
