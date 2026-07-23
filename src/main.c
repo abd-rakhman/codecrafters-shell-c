@@ -104,7 +104,7 @@ static void list_path_completions(const char *dir_path, const char *prefix, int 
     (*count)++;
   }
 
-  qsort(completions, *count, sizeof(completions), compare);
+  qsort(completions, *count, sizeof(*completions), compare);
 
   closedir(dir);
 }
@@ -263,23 +263,26 @@ void execute(char line[]) {
   printf("$ ");
 }
 
-static void handle_backspace(int *len) {
+static void handle_backspace(char *line, int *len) {
   if (*len > 0) {
     (*len)--;
+    line[*len] = '\0';
     write(STDOUT_FILENO, "\b \b", 3);
   }
 }
 
 static void handle_enter(char *line, int *len) {
   printf("\n");
-  line[(*len)++] = '\0';
+  line[*len] = '\0';
   execute(line);
   *len = 0;
+  line[0] = '\0';
 }
 
 static void handle_char(char *line, int *len, int c) {
-  printf("%c", c);
   line[(*len)++] = c;
+  line[*len] = '\0';
+  putchar(c);
 }
 
 static void free_str_array(char **args, int argc) {
@@ -305,6 +308,7 @@ static void append_to_line(char *line, int *len, const char *s) {
     line[(*len)++] = *s;
     putchar(*s);
   }
+  line[*len] = '\0';
 }
 
 static size_t common_prefix_len(char **completions, int count) {
@@ -365,6 +369,7 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
     line[(*len)++] = completions[0][j];
     putchar(completions[0][j]);
   }
+  line[*len] = '\0';
   *tab_count = 0;
 }
 
@@ -416,9 +421,11 @@ static void run_repl(Trie *trie) {
   int tab_count = 0;
   int c;
 
+  line[0] = '\0';
+
   while ((c = getchar()) != EOF) {
     if (c == 127 || c == 8) {
-      handle_backspace(&len);
+      handle_backspace(line, &len);
       tab_count = 0;
     } else if (c == '\n') {
       handle_enter(line, &len);
