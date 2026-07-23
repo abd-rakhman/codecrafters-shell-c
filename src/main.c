@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/dirent.h>
-#include <sys/fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdbool.h>
