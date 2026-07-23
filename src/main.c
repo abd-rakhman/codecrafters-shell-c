@@ -59,7 +59,7 @@ static void find_all_executables(int *count, char **executables) {
 
     while ((entry = readdir(dir)) != NULL) {
       if (entry->d_type != DT_REG && entry->d_type != DT_LNK && entry->d_type != DT_UNKNOWN) continue;
-      executables[*count] = malloc(BUFFER_SIZE * sizeof(char));
+      executables[*count] = malloc(BUFFER_SIZE);
       strcpy(executables[*count], entry->d_name);
       *count = *count + 1;
     }
@@ -69,55 +69,33 @@ static void find_all_executables(int *count, char **executables) {
   free(path);
 }
 
-static void find_possible_files(char *prefix, int *count, char **suffix) {
+static void list_path_completions(const char *dir_path, const char *prefix, int *count,
+                                  char **completions) {
   *count = 0;
 
-  char *lastSlash = strrchr(prefix, '/');
-  char *path;
-  if (lastSlash == NULL) {
-    path = malloc(2);
-    if (path == NULL) return;
-    strcpy(path, ".");
-  } else {
-    size_t len = (size_t)(lastSlash - prefix);
-    path = malloc(len + 1);
-    if (path == NULL) return;
-    memcpy(path, prefix, len);
-    path[len] = '\0';
-    prefix = lastSlash + 1;
-  }
-
-  DIR *dir = opendir(path);
-  free(path);
+  DIR *dir = opendir(dir_path);
   if (dir == NULL) {
     return;
   }
 
+  size_t prefix_len = strlen(prefix);
   struct dirent *entry;
   while ((entry = readdir(dir)) != NULL) {
     const char *name = entry->d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-        continue;
-    size_t prefix_len = strlen(prefix);
-    if (prefix_len == 0) {
-      suffix[*count] = strdup(name);
-      if (entry->d_type == DT_DIR) {
-        suffix[*count][strlen(suffix[*count])] = '/';
-        suffix[*count][strlen(suffix[*count])] = '\0';
-      }
-      (*count)++;
-      continue;
-    }
-    if (strncmp(name, prefix, prefix_len) != 0) continue;
-    if (name[prefix_len] == '\0') {
-      continue;
-    }
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
-    suffix[*count] = malloc((strlen(name) + 1) * sizeof(char));
-    strcpy(suffix[*count], name + prefix_len);
-    if (entry->d_type == DT_DIR) {
-      suffix[*count][strlen(suffix[*count])] = '/';
-      suffix[*count][strlen(suffix[*count])] = '\0';
+    if (strncmp(name, prefix, prefix_len) != 0) continue;
+    bool is_dir = (entry->d_type == DT_DIR);
+    const char* rest = name + prefix_len;
+    size_t n = strlen(rest);
+
+    completions[*count] = malloc(n + 2);
+    memcpy(completions[*count], rest, n);
+    if (is_dir) {
+      completions[*count][n] = '/';
+      completions[*count][n+1] = '\0';
+    } else {
+      completions[*count][n] = '\0';
     }
     (*count)++;
   }
@@ -221,43 +199,49 @@ static void apply_trailing_redirect(char *args[], int n) {
   args[n - 2] = NULL;
 }
 
-void execute(char line[]) {
-  int n = 0, len = 0;
+void parse_line(char *line, int *n, char **args) {
+  int len = 0;
   char *quote = NULL;
-  char *args[BUFFER_SIZE];
 
-  args[0] = malloc(BUFFER_SIZE * sizeof(char));
+  args[0] = malloc(BUFFER_SIZE);
   for (char *p = line; *p; p++) {
     if (*p == ' ' && !quote) {
       if (len > 0) {
-        *(args[n] + len) = '\0';
+        *(args[*n] + len) = '\0';
         len = 0;
-        n++;
-        args[n] = malloc(BUFFER_SIZE * sizeof(char));
+        (*n)++;
+        args[*n] = malloc(BUFFER_SIZE);
       }
       continue;
     } else if (*p == '\'' || *p == '\"') {
       if (!quote) quote = p;
       else if (*quote == *p) quote = NULL;
-      else *(args[n] + len++) = *p;
+      else *(args[*n] + len++) = *p;
     } else if (*p == '\\' && (!quote || *quote != '\'')) {
         p++;
-        *(args[n] + len++) = *p;
+        *(args[*n] + len++) = *p;
     } else {
-      *(args[n] + len++) = *p;
+      *(args[*n] + len++) = *p;
     }
   }
   if (len > 0) {
-    *(args[n++] + len) = '\0';
+    *(args[(*n)++] + len) = '\0';
   }
-  args[n] = NULL;
+  args[*n] = NULL;
+}
+
+void execute(char line[]) {
+  int *n = calloc(1, sizeof(int));
+  char *args[BUFFER_SIZE];
+
+  parse_line(line, n, args);
 
   if (n == 0) {
     printf("$ ");
     return;
   }
 
-  apply_trailing_redirect(args, n);
+  apply_trailing_redirect(args, *n);
 
   if (strcmp(args[0], "exit") == 0) exit(0);
   else if (strcmp(args[0], "echo") == 0) echo_command(args);
@@ -270,30 +254,6 @@ void execute(char line[]) {
   dup2(stderr_fd, 2);
 
   printf("$ ");
-}
-static void reverse(char *str) {
-  size_t left = 0;
-  size_t right = strlen(str);
-
-  if (right == 0) return;
-  right--;
-
-  while (left < right) {
-    char tmp = str[left];
-    str[left] = str[right];
-    str[right] = tmp;
-    left++;
-    right--;
-  }
-}
-
-static void current_word(const char *line, int len, char *word_out) {
-  int word_pos = 0;
-  for (int pos = len - 1; pos >= 0 && line[pos] != ' '; pos--) {
-    word_out[word_pos++] = line[pos];
-  }
-  word_out[word_pos] = '\0';
-  reverse(word_out);
 }
 
 static void handle_backspace(int *len) {
@@ -315,83 +275,118 @@ static void handle_char(char *line, int *len, int c) {
   line[(*len)++] = c;
 }
 
-static void handle_autocomplete(char *line, int *len, char *word, bool *tabbed, int *count, char** suffices) {
-  if (*tabbed) {
-    printf("\n");
-    for (int i = 0; i < *count; i++) {
-      if (i > 0) printf("  ");
-      char *lastSlash = strrchr(word, '/');
+static void free_str_array(char **args, int argc) {
+  for (int i = 0; i < argc; i++) free(args[i]);
+  free(args);
+}
 
-      printf("%s%s", (lastSlash == NULL ? word : lastSlash+1), suffices[i]);
+/* Owns the returned dir string; *filename points into token (do not free). */
+static char *split_path_token(const char *token, const char **filename) {
+  const char *last_slash = strrchr(token, '/');
+  if (last_slash == NULL) {
+    *filename = token;
+    return strdup(".");
+  }
+  size_t dir_len = (size_t)(last_slash - token);
+  *filename = last_slash + 1;
+  if (dir_len == 0) return strdup("/");
+  return strndup(token, dir_len);
+}
+
+static void append_to_line(char *line, int *len, const char *s) {
+  for (; *s; s++) {
+    line[(*len)++] = *s;
+    putchar(*s);
+  }
+}
+
+static size_t common_prefix_len(char **completions, int count) {
+  size_t n = strlen(completions[0]);
+  for (int i = 1; i < count; i++) {
+    size_t len = strlen(completions[i]);
+    if (len < n) n = len;
+    for (size_t j = 0; j < n; j++) {
+      if (completions[i][j] != completions[0][j]) {
+        n = j;
+        break;
+      }
     }
-    printf("\n$ %s", line);
-    *tabbed = false;
-  } else if (*count == 1) {
-    for (char *p = suffices[0]; *p; p++) {
-      line[(*len)++] = *p;
-      printf("%c", *p);
-    }
-    if (line[(*len) - 1] != '/') {
-      line[(*len)++] = ' ';
-      printf(" ");
-    }
-    *tabbed = false;
-  } else if (*count == 0) {
+    if (n == 0) break;
+  }
+  return n;
+}
+
+static void apply_completions(char *line, int *len, const char *word, int *tab_count,
+                              int count, char **completions) {
+  if (count == 0) {
     printf("\a");
-  } else {
-    int prefix_len = strlen(suffices[0]);
-    for (int i = 1; i < *count; i++) {
-      char *str = suffices[i];
-      if (strlen(str) < prefix_len) prefix_len = strlen(str);
-      for (int j = 0; j < prefix_len; j++) {
-        if (str[j] != suffices[0][j]) {
-          prefix_len = j;
-          break;
-        }
-      }
-      if (prefix_len == 0) break;
+    *tab_count = 0;
+    return;
+  }
+
+  if (count == 1) {
+    append_to_line(line, len, completions[0]);
+    bool is_dir = *len > 0 && line[*len - 1] == '/';
+    if (!is_dir) {
+      line[(*len)++] = ' ';
+      putchar(' ');
     }
-    if (prefix_len == 0) {
-      *tabbed = true;
-      printf("\a");
+    *tab_count = 0;
+    return;
+  }
+
+  size_t shared = common_prefix_len(completions, count);
+  if (shared == 0) {
+    if (*tab_count >= 2) {
+      const char *base = strrchr(word, '/');
+      base = base ? base + 1 : word;
+
+      printf("\n");
+      for (int i = 0; i < count; i++) {
+        if (i > 0) printf("  ");
+        printf("%s%s", base, completions[i]);
+      }
+      printf("\n$ %s", line);
+      *tab_count = 0;
     } else {
-      for (int j = 0; j < prefix_len; j++) {
-         line[(*len)++] = suffices[0][j];
-         printf("%c", suffices[0][j]);
-      }
-    }
-  }
-}
-
-static int line_has_space(const char *line, int len) {
-  for (int i = 0; i < len; i++) {
-    if (line[i] == ' ') return 1;
-  }
-  return 0;
-}
-
-static void handle_tab(char *line, int *len, bool *tabbed, Trie *trie) {
-  char word[BUFFER_SIZE];
-  current_word(line, *len, word);
-
-  if (line_has_space(line, *len)) {
-    int count = 0;
-    char **suffices = malloc(BUFFER_SIZE * sizeof(char *));
-    if (suffices == NULL) {
       printf("\a");
-      return;
     }
-    find_possible_files(word, &count, suffices);
-    handle_autocomplete(line, len, word, tabbed, &count, suffices);
-    for (int i = 0; i < count; i++) {
-      free(suffices[i]);
-    }
-    free(suffices);
-  } else {
-    TrieResult *result = trie_autocomplete(trie, word);
-    handle_autocomplete(line, len, word, tabbed, &result->count, result->results);
-    trie_result_destroy(result);
+    return;
   }
+
+  for (size_t j = 0; j < shared; j++) {
+    line[(*len)++] = completions[0][j];
+    putchar(completions[0][j]);
+  }
+  *tab_count = 0;
+}
+
+static void handle_tab(char *line, int *len, int *tab_count, Trie *trie) {
+  char **args = malloc(BUFFER_SIZE * sizeof(char *));
+  int argc = 0;
+  parse_line(line, &argc, args);
+
+  bool trailing_space = *len > 0 && line[*len - 1] == ' ';
+
+  if (argc == 1 && !trailing_space) {
+    TrieResult *result = trie_autocomplete(trie, args[0]);
+    apply_completions(line, len, args[0], tab_count, result->count, result->results);
+    trie_result_destroy(result);
+    free_str_array(args, argc);
+    return;
+  }
+
+  const char *token = trailing_space ? "" : (argc > 0 ? args[argc - 1] : "");
+  const char *filename;
+  char *dir_path = split_path_token(token, &filename);
+  char **completions = malloc(BUFFER_SIZE * sizeof(char *));
+  int count = 0;
+  list_path_completions(dir_path, filename, &count, completions);
+  apply_completions(line, len, token, tab_count, count, completions);
+
+  free_str_array(completions, count);
+  free(dir_path);
+  free_str_array(args, argc);
 }
 
 static Trie *build_executables_trie(void) {
@@ -411,21 +406,22 @@ static Trie *build_executables_trie(void) {
 static void run_repl(Trie *trie) {
   char line[BUFFER_SIZE];
   int len = 0;
-  bool tabbed = false;
+  int tab_count = 0;
   int c;
 
   while ((c = getchar()) != EOF) {
     if (c == 127 || c == 8) {
       handle_backspace(&len);
-      tabbed = false;
+      tab_count = 0;
     } else if (c == '\n') {
       handle_enter(line, &len);
-      tabbed = false;
+      tab_count = 0;
     } else if (c == '\t') {
-      handle_tab(line, &len, &tabbed, trie);
+      tab_count++;
+      handle_tab(line, &len, &tab_count, trie);
     } else {
       handle_char(line, &len, c);
-      tabbed = false;
+      tab_count = 0;
     }
   }
 }
