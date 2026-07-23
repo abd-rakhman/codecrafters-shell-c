@@ -103,6 +103,10 @@ static void find_possible_files(char *prefix, int *count, char **suffix) {
     size_t prefix_len = strlen(prefix);
     if (prefix_len == 0) {
       suffix[*count] = strdup(name);
+      if (entry->d_type == DT_DIR) {
+        suffix[*count][strlen(suffix[*count])] = '/';
+        suffix[*count][strlen(suffix[*count])] = '\0';
+      }
       (*count)++;
       continue;
     }
