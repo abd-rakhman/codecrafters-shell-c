@@ -11,7 +11,7 @@
 
 #define BUFFER_SIZE 1024
 
-const char *builtins[] = {"echo", "type", "exit", "pwd", NULL};
+const char *builtins[] = {"echo", "type", "exit", "pwd", "complete", NULL};
 int stdout_fd, stderr_fd;
 
 static int is_builtin(const char *cmd) {
@@ -206,49 +206,52 @@ static void apply_trailing_redirect(char *args[], int n) {
   args[n - 2] = NULL;
 }
 
-void parse_line(char *line, int *n, char **args) {
-  int len = 0;
-  char *quote = NULL;
+void parse_line(const char *line, int line_len, int *n, char **args) {
+  int tok_len = 0;
+  const char *quote = NULL;
 
   args[0] = malloc(BUFFER_SIZE);
-  for (char *p = line; *p; p++) {
-    if (*p == ' ' && !quote) {
-      if (len > 0) {
-        *(args[*n] + len) = '\0';
-        len = 0;
+  for (int i = 0; i < line_len; i++) {
+    char ch = line[i];
+    if (ch == ' ' && !quote) {
+      if (tok_len > 0) {
+        args[*n][tok_len] = '\0';
+        tok_len = 0;
         (*n)++;
         args[*n] = malloc(BUFFER_SIZE);
       }
       continue;
-    } else if (*p == '\'' || *p == '\"') {
-      if (!quote) quote = p;
-      else if (*quote == *p) quote = NULL;
-      else *(args[*n] + len++) = *p;
-    } else if (*p == '\\' && (!quote || *quote != '\'')) {
-        p++;
-        *(args[*n] + len++) = *p;
+    } else if (ch == '\'' || ch == '\"') {
+      if (!quote) quote = &line[i];
+      else if (*quote == ch) quote = NULL;
+      else args[*n][tok_len++] = ch;
+    } else if (ch == '\\' && (!quote || *quote != '\'')) {
+      i++;
+      if (i >= line_len) break;
+      args[*n][tok_len++] = line[i];
     } else {
-      *(args[*n] + len++) = *p;
+      args[*n][tok_len++] = ch;
     }
   }
-  if (len > 0) {
-    *(args[(*n)++] + len) = '\0';
+  if (tok_len > 0) {
+    args[*n][tok_len] = '\0';
+    (*n)++;
   }
   args[*n] = NULL;
 }
 
-void execute(char line[]) {
-  int *n = calloc(1, sizeof(int));
+void execute(char line[], int line_len) {
+  int n = 0;
   char *args[BUFFER_SIZE];
 
-  parse_line(line, n, args);
+  parse_line(line, line_len, &n, args);
 
   if (n == 0) {
     printf("$ ");
     return;
   }
 
-  apply_trailing_redirect(args, *n);
+  apply_trailing_redirect(args, n);
 
   if (strcmp(args[0], "exit") == 0) exit(0);
   else if (strcmp(args[0], "echo") == 0) echo_command(args);
@@ -273,8 +276,7 @@ static void handle_backspace(char *line, int *len) {
 
 static void handle_enter(char *line, int *len) {
   printf("\n");
-  line[*len] = '\0';
-  execute(line);
+  execute(line, *len);
   *len = 0;
   line[0] = '\0';
 }
@@ -357,7 +359,7 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
         if (i > 0) printf("  ");
         printf("%s%s", base, completions[i]);
       }
-      printf("\n$ %s", line);
+      printf("\n$ %.*s", *len, line);
       *tab_count = 0;
     } else {
       printf("\a");
@@ -376,7 +378,7 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
 static void handle_tab(char *line, int *len, int *tab_count, Trie *trie) {
   char **args = malloc(BUFFER_SIZE * sizeof(char *));
   int argc = 0;
-  parse_line(line, &argc, args);
+  parse_line(line, *len, &argc, args);
 
   bool trailing_space = *len > 0 && line[*len - 1] == ' ';
 
