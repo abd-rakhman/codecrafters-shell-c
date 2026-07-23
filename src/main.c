@@ -69,6 +69,10 @@ static void find_all_executables(int *count, char **executables) {
   free(path);
 }
 
+static int compare(const void *a, const void *b) {
+    return strcmp(*(const char**)a, *(const char**)b);
+}
+
 static void list_path_completions(const char *dir_path, const char *prefix, int *count,
                                   char **completions) {
   *count = 0;
@@ -99,6 +103,9 @@ static void list_path_completions(const char *dir_path, const char *prefix, int 
     }
     (*count)++;
   }
+
+  qsort(completions, *count, sizeof(completions), compare);
+
   closedir(dir);
 }
 
