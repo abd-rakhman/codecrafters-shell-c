@@ -149,6 +149,16 @@ static void pwd_command(void) {
   }
 }
 
+static void complete_command(char *args[], int argc) {
+  if (argc == 3) {
+    if (strcmp(args[1], "-p") == 0) {
+      printf("complete: %s: no completion specification\n", args[2]);
+      return ;
+    }
+  }
+  printf("complete: incorrect format");
+}
+
 static void execute_command(char *args[]) {
   char *path = find_executable(args[0]);
   if (path == NULL) {
@@ -258,6 +268,7 @@ void execute(char line[], int line_len) {
   else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
   else if (strcmp(args[0], "pwd") == 0) pwd_command();
   else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
+  else if (strcmp(args[0], "complete") == 0) complete_command(args, n);
   else execute_command(args);
 
   dup2(stdout_fd, 1);
