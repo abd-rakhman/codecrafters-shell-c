@@ -8,6 +8,7 @@
 #include <termios.h>
 #include <dirent.h>
 #include "trie.h"
+#include "map.h"
 
 #define BUFFER_SIZE 1024
 
@@ -149,14 +150,31 @@ static void pwd_command(void) {
   }
 }
 
-static void complete_command(char *args[], int argc) {
-  if (argc == 3) {
-    if (strcmp(args[1], "-p") == 0) {
-      printf("complete: %s: no completion specification\n", args[2]);
+static void complete_command(Map *compspecs, char *args[], int argc) {
+  if (strcmp(args[1], "-p") == 0) {
+    const char *cmd = args[2];
+    if (cmd == NULL) {
+      printf("complete: your function is not complete\n");
       return ;
     }
+    const char *path = map_get(compspecs, cmd);
+    if (path == NULL) {
+      printf("complete: %s: no completion specification\n", cmd);
+    } else {
+      printf("complete -C '%s' %s\n", path, cmd);
+    }
+  } else if (strcmp(args[1], "-C") == 0) {
+    const char *path = args[2];
+    const char *cmd = args[3];
+    if (path == NULL || cmd == NULL) {
+      printf("complete: your function is not complete\n");
+      return ;
+    }
+    map_add(compspecs, cmd, path);
+    const char *get_path = map_get(compspecs, cmd);
+  } else {
+    printf("complete: incorrect format\n");
   }
-  printf("complete: incorrect format");
 }
 
 static void execute_command(char *args[]) {
@@ -250,10 +268,10 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
   args[*n] = NULL;
 }
 
-void execute(char line[], int line_len) {
+void execute(Map *compspecs, char line[], int line_len) {
   int n = 0;
   char *args[BUFFER_SIZE];
-
+  
   parse_line(line, line_len, &n, args);
 
   if (n == 0) {
@@ -268,7 +286,7 @@ void execute(char line[], int line_len) {
   else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
   else if (strcmp(args[0], "pwd") == 0) pwd_command();
   else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
-  else if (strcmp(args[0], "complete") == 0) complete_command(args, n);
+  else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
   else execute_command(args);
 
   dup2(stdout_fd, 1);
@@ -285,9 +303,9 @@ static void handle_backspace(char *line, int *len) {
   }
 }
 
-static void handle_enter(char *line, int *len) {
+static void handle_enter(Map *compspecs, char *line, int *len) {
   printf("\n");
-  execute(line, *len);
+  execute(compspecs, line, *len);
   *len = 0;
   line[0] = '\0';
 }
@@ -428,7 +446,7 @@ static Trie *build_executables_trie(void) {
   return trie;
 }
 
-static void run_repl(Trie *trie) {
+static void run_repl(Trie *trie, Map *compspecs) {
   char line[BUFFER_SIZE];
   int len = 0;
   int tab_count = 0;
@@ -441,7 +459,7 @@ static void run_repl(Trie *trie) {
       handle_backspace(line, &len);
       tab_count = 0;
     } else if (c == '\n') {
-      handle_enter(line, &len);
+      handle_enter(compspecs, line, &len);
       tab_count = 0;
     } else if (c == '\t') {
       tab_count++;
@@ -458,9 +476,10 @@ int main(void) {
   setbuf(stdout, NULL);
   stdout_fd = dup(1), stderr_fd = dup(2);
   Trie* trie = build_executables_trie();
+  Map* compspecs = map_create();
 
   printf("$ ");
-  run_repl(trie);
+  run_repl(trie, compspecs);
 
   trie_destroy(trie);
   close(stdout_fd);
