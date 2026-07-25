@@ -424,7 +424,9 @@ static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count,
         printf("\a");
         return ;
       }
-      printf("%s ", completion);
+      append_to_line(line, len, completion);
+      line[(*len)++] = ' ';
+      putchar(' ');
       free(completion);
       return ;
     }
