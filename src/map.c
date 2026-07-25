@@ -26,7 +26,7 @@ void map_add(Map *map, const char *key, const char *value) {
   map->size++;
 }
 
-const char *map_get(Map *map, const char *key) {
+char *map_get(Map *map, const char *key) {
   for (int i = 0; i < map->size; i++) {
     if (strcmp(map->keys[i], key) == 0) {
       return map->values[i];

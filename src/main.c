@@ -8,7 +8,7 @@
 #include <termios.h>
 #include <dirent.h>
 #include "trie.h"
-#include "map.h"
+#include "compspec.h"
 
 #define BUFFER_SIZE 1024
 
@@ -150,14 +150,14 @@ static void pwd_command(void) {
   }
 }
 
-static void complete_command(Map *compspecs, char *args[], int argc) {
+static void complete_command(Compspec *compspecs, char *args[], int argc) {
   if (strcmp(args[1], "-p") == 0) {
     const char *cmd = args[2];
     if (cmd == NULL) {
       printf("complete: your function is not complete\n");
       return ;
     }
-    const char *path = map_get(compspecs, cmd);
+    const char *path = compspec_get_path(compspecs, cmd);
     if (path == NULL) {
       printf("complete: %s: no completion specification\n", cmd);
     } else {
@@ -170,8 +170,7 @@ static void complete_command(Map *compspecs, char *args[], int argc) {
       printf("complete: your function is not complete\n");
       return ;
     }
-    map_add(compspecs, cmd, path);
-    const char *get_path = map_get(compspecs, cmd);
+    compspec_add_path(compspecs, cmd, path);
   } else {
     printf("complete: incorrect format\n");
   }
@@ -268,7 +267,7 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
   args[*n] = NULL;
 }
 
-void execute(Map *compspecs, char line[], int line_len) {
+void execute(Compspec *compspecs, char line[], int line_len) {
   int n = 0;
   char *args[BUFFER_SIZE];
   
@@ -303,7 +302,7 @@ static void handle_backspace(char *line, int *len) {
   }
 }
 
-static void handle_enter(Map *compspecs, char *line, int *len) {
+static void handle_enter(Compspec *compspecs, char *line, int *len) {
   printf("\n");
   execute(compspecs, line, *len);
   *len = 0;
@@ -404,19 +403,31 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
   *tab_count = 0;
 }
 
-static void handle_tab(char *line, int *len, int *tab_count, Trie *trie) {
+static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count, Trie *trie) {
   char **args = malloc(BUFFER_SIZE * sizeof(char *));
   int argc = 0;
   parse_line(line, *len, &argc, args);
 
   bool trailing_space = *len > 0 && line[*len - 1] == ' ';
-
   if (argc == 1 && !trailing_space) {
     TrieResult *result = trie_autocomplete(trie, args[0]);
     apply_completions(line, len, args[0], tab_count, result->count, result->results);
     trie_result_destroy(result);
     free_str_array(args, argc);
     return;
+  }
+
+  if (argc == 1) {
+    if (compspec_get_path(compspec, args[0]) != NULL) {
+      char *completion = compspec_run(compspec, args[0]);
+      if (completion == NULL) {
+        printf("\a");
+        return ;
+      }
+      printf("%s", completion);
+      free(completion);
+      return ;
+    }
   }
 
   const char *token = trailing_space ? "" : (argc > 0 ? args[argc - 1] : "");
@@ -446,7 +457,7 @@ static Trie *build_executables_trie(void) {
   return trie;
 }
 
-static void run_repl(Trie *trie, Map *compspecs) {
+static void run_repl(Trie *trie, Compspec *compspecs) {
   char line[BUFFER_SIZE];
   int len = 0;
   int tab_count = 0;
@@ -463,7 +474,7 @@ static void run_repl(Trie *trie, Map *compspecs) {
       tab_count = 0;
     } else if (c == '\t') {
       tab_count++;
-      handle_tab(line, &len, &tab_count, trie);
+      handle_tab(compspecs, line, &len, &tab_count, trie);
     } else {
       handle_char(line, &len, c);
       tab_count = 0;
@@ -476,7 +487,7 @@ int main(void) {
   setbuf(stdout, NULL);
   stdout_fd = dup(1), stderr_fd = dup(2);
   Trie* trie = build_executables_trie();
-  Map* compspecs = map_create();
+  Compspec* compspecs = compspec_create();
 
   printf("$ ");
   run_repl(trie, compspecs);
