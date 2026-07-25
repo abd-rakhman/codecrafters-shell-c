@@ -54,6 +54,10 @@ char *compspec_run(Compspec *compspec, const char *command) {
   char *line = NULL;
   size_t len = 0;
   getline(&line, &len, stream);
+  size_t n = strlen(line);
+  if (n > 0 && line[n - 1] == '\n') {
+    line[n - 1] = '\0';
+  }
   
   fclose(stream);
   free(path);
