@@ -283,24 +283,49 @@ void execute(Compspec *compspecs, char line[], int line_len) {
   
   parse_line(line, line_len, &n, args);
 
+  bool is_background = (n >= 1 && strcmp(args[n-1], "&") == 0);
+  args[--n] = NULL;
+
   if (n == 0) {
     printf("$ ");
     return;
   }
 
-  apply_trailing_redirect(args, n);
+  if (!is_background) {
+    apply_trailing_redirect(args, n);
 
-  if (strcmp(args[0], "exit") == 0) exit(0);
-  else if (strcmp(args[0], "echo") == 0) echo_command(args);
-  else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
-  else if (strcmp(args[0], "pwd") == 0) pwd_command();
-  else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
-  else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
-  else if (strcmp(args[0], "jobs") == 0) jobs_command();
-  else execute_command(args);
+    if (strcmp(args[0], "exit") == 0) exit(0);
+    else if (strcmp(args[0], "echo") == 0) echo_command(args);
+    else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
+    else if (strcmp(args[0], "pwd") == 0) pwd_command();
+    else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
+    else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
+    else if (strcmp(args[0], "jobs") == 0) jobs_command();
+    else execute_command(args);
 
-  dup2(stdout_fd, 1);
-  dup2(stderr_fd, 2);
+    dup2(stdout_fd, 1);
+    dup2(stderr_fd, 2);
+  } else {
+    pid_t pid = fork();
+    if (pid == 0) {
+      apply_trailing_redirect(args, n);
+
+      if (strcmp(args[0], "exit") == 0) exit(0);
+      else if (strcmp(args[0], "echo") == 0) echo_command(args);
+      else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
+      else if (strcmp(args[0], "pwd") == 0) pwd_command();
+      else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
+      else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
+      else if (strcmp(args[0], "jobs") == 0) jobs_command();
+      else execute_command(args);
+
+      dup2(stdout_fd, 1);
+      dup2(stderr_fd, 2);
+      exit(1);
+    } else if (pid > 0) {
+      printf("[1] %d\n", pid);
+    }
+  }
 
   printf("$ ");
 }
