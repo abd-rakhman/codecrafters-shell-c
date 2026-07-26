@@ -403,6 +403,8 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
   *tab_count = 0;
 }
 
+char *c
+
 static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count, Trie *trie) {
   char **args = malloc(BUFFER_SIZE * sizeof(char *));
   int argc = 0;
@@ -422,6 +424,10 @@ static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count,
     const char *word_before = trailing_space
       ? args[argc - 1]
       : (argc > 1 ? args[argc - 2] : "");
+    setenv("COMP_LINE", line, 1);
+    char *line_length = malloc(BUFFER_SIZE);
+    snprintf(line_length, sizeof(line_length), "%d", *len);
+    setenv("COMP_POINT", line_length, 1);
     char *completion = compspec_run(compspec, args[0], prefix, word_before);
     if (completion == NULL || completion[0] == '\0') {
       printf("\a");
