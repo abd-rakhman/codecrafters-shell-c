@@ -184,7 +184,6 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
 }
 
 static void jobs_command(void) {
-  printf("\n");
 }
 
 static void execute_command(char *args[]) {
