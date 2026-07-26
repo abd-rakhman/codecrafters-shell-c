@@ -429,19 +429,8 @@ static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count,
     char **completions = malloc(BUFFER_SIZE * sizeof(char*));
     int count = 0;
     compspec_run(compspec, completions, &count, args[0], prefix, word_before);
-    // if (completion == NULL || completion[0] == '\0') {
-    //   printf("\a");
-    // } else {
-    //   const char *suffix = completion;
-    //   size_t prefix_len = strlen(prefix);
-    //   if (strncmp(completion, prefix, prefix_len) == 0) {
-    //     suffix = completion + prefix_len;
-    //   }
-    //   append_to_line(line, len, suffix);
-    //   line[(*len)++] = ' ';
-    //   putchar(' ');
-    // }
-    // free(completion);
+    apply_completions(line, len, args[0], tab_count, count, completions);
+    free_str_array(completions, count);
     free_str_array(args, argc);
     return;
   }
