@@ -429,7 +429,7 @@ static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count,
     char **completions = malloc(BUFFER_SIZE * sizeof(char*));
     int count = 0;
     compspec_run(compspec, completions, &count, args[0], prefix, word_before);
-    apply_completions(line, len, args[0], tab_count, count, completions);
+    apply_completions(line, len, prefix, tab_count, count, completions);
     free_str_array(completions, count);
     free_str_array(args, argc);
     return;
