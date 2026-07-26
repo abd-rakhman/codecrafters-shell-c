@@ -12,6 +12,13 @@
 
 #define BUFFER_SIZE 1024
 
+typedef struct {
+  int number;
+  int pid;
+  char **args;
+  bool is_running;
+} BackgroundJob;
+
 const char *builtins[] = {"echo", "type", "exit", "pwd", "complete", "jobs", NULL};
 int stdout_fd, stderr_fd;
 
@@ -183,10 +190,22 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
   }
 }
 
-static void jobs_command(void) {
+static void jobs_command(BackgroundJob **background_jobs) {
+  int p = 0; 
+  while (background_jobs[p] != NULL) {
+    printf("[%d]%c  %-24s", background_jobs[p]->number, '+', background_jobs[p]->is_running ? "Running" : "Done");
+    int i = 0;
+    while (background_jobs[p]->args[i] != NULL) {
+      if (i > 0) printf(" ");
+      printf("%s", background_jobs[p]->args[i]);
+      i++;
+    }
+    printf("\n");
+    p++;
+  }
 }
 
-static void execute_command(bool is_background, char *args[]) {
+static void execute_command(BackgroundJob **background_jobs, int* background_jobs_count, bool is_background, char *args[]) {
   char *path = find_executable(args[0]);
   if (path == NULL) {
     printf("%s: command not found\n", args[0]);
@@ -199,7 +218,19 @@ static void execute_command(bool is_background, char *args[]) {
     exit(1);
   } else if (pid > 0) {
     if (is_background) {
-      printf("[1] %d\n", pid);
+      BackgroundJob *new_job = malloc(sizeof(BackgroundJob));
+      new_job -> is_running = true;
+      new_job -> pid = pid;
+      new_job -> args = calloc(BUFFER_SIZE, sizeof(char*));
+      int p = 0;
+      while(args[p] != NULL) {
+        new_job -> args[p] = strdup(args[p]);
+        p++;
+      }
+      new_job -> number = *background_jobs_count + 1;
+      background_jobs[*background_jobs_count] = new_job;
+
+      printf("[%d] %d\n", new_job->number, new_job->pid);
     } else {
       waitpid(pid, NULL, 0);
     }
@@ -281,7 +312,7 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
   args[*n] = NULL;
 }
 
-void execute(Compspec *compspecs, char line[], int line_len) {
+void execute(Compspec *compspecs, BackgroundJob **background_jobs, int* background_jobs_count, char line[], int line_len) {
   int n = 0;
   char *args[BUFFER_SIZE];
   
@@ -305,8 +336,8 @@ void execute(Compspec *compspecs, char line[], int line_len) {
   else if (strcmp(args[0], "pwd") == 0) pwd_command();
   else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
   else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
-  else if (strcmp(args[0], "jobs") == 0) jobs_command();
-  else execute_command(is_background, args);
+  else if (strcmp(args[0], "jobs") == 0) jobs_command(background_jobs);
+  else execute_command(background_jobs, background_jobs_count, is_background, args);
 
   dup2(stdout_fd, 1);
   dup2(stderr_fd, 2);
@@ -322,9 +353,9 @@ static void handle_backspace(char *line, int *len) {
   }
 }
 
-static void handle_enter(Compspec *compspecs, char *line, int *len) {
+static void handle_enter(Compspec *compspecs, BackgroundJob **background_jobs, int* background_jobs_count, char *line, int *len) {
   printf("\n");
-  execute(compspecs, line, *len);
+  execute(compspecs, background_jobs, background_jobs_count, line, *len);
   *len = 0;
   line[0] = '\0';
 }
@@ -482,7 +513,7 @@ static Trie *build_executables_trie(void) {
   return trie;
 }
 
-static void run_repl(Trie *trie, Compspec *compspecs) {
+static void run_repl(Trie *trie, Compspec *compspecs, BackgroundJob **background_jobs, int* background_jobs_count) {
   char line[BUFFER_SIZE];
   int len = 0;
   int tab_count = 0;
@@ -495,7 +526,7 @@ static void run_repl(Trie *trie, Compspec *compspecs) {
       handle_backspace(line, &len);
       tab_count = 0;
     } else if (c == '\n') {
-      handle_enter(compspecs, line, &len);
+      handle_enter(compspecs, background_jobs, background_jobs_count, line, &len);
       tab_count = 0;
     } else if (c == '\t') {
       tab_count++;
@@ -513,9 +544,11 @@ int main(void) {
   stdout_fd = dup(1), stderr_fd = dup(2);
   Trie* trie = build_executables_trie();
   Compspec* compspecs = compspec_create();
+  BackgroundJob **background_jobs = calloc(BUFFER_SIZE, sizeof(BackgroundJob*));
+  int background_jobs_count = 0;
 
   printf("$ ");
-  run_repl(trie, compspecs);
+  run_repl(trie, compspecs, background_jobs, &background_jobs_count);
 
   trie_destroy(trie);
   close(stdout_fd);
