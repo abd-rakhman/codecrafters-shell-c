@@ -296,7 +296,7 @@ void execute(Compspec *compspecs, char line[], int line_len) {
   else if (strcmp(args[0], "pwd") == 0) pwd_command();
   else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
   else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
-  else if (strcmp(args[0], "jobs") == 0) complete_command(compspecs, args, n);
+  else if (strcmp(args[0], "jobs") == 0) jobs_command();
   else execute_command(args);
 
   dup2(stdout_fd, 1);
