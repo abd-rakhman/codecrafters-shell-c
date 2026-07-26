@@ -239,6 +239,7 @@ static void execute_command(BackgroundJob **background_jobs, int* background_job
         p++;
       }
       background_jobs[*background_jobs_count] = new_job;
+      (*background_jobs_count)++;
 
       printf("[%d] %d\n", new_job->number, new_job->pid);
     } else {
