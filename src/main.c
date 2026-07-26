@@ -16,6 +16,7 @@ typedef struct {
   int number;
   int pid;
   char **args;
+  int status;
   bool is_running;
 } BackgroundJob;
 
@@ -193,7 +194,10 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
 static void jobs_command(BackgroundJob **background_jobs) {
   int p = 0; 
   while (background_jobs[p] != NULL) {
-    printf("[%d]%c  %-24s", background_jobs[p]->number, '+', background_jobs[p]->is_running ? "Running" : "Done");
+    char status = ' ';
+    if (background_jobs[p]->status == 1) status = '-';
+    if (background_jobs[p]->status == 2) status = '+';
+    printf("[%d]%c  %-24s", background_jobs[p]->number, status, background_jobs[p]->is_running ? "Running" : "Done");
     int i = 0;
     while (background_jobs[p]->args[i] != NULL) {
       if (i > 0) printf(" ");
@@ -228,6 +232,12 @@ static void execute_command(BackgroundJob **background_jobs, int* background_job
         p++;
       }
       new_job -> number = *background_jobs_count + 1;
+      new_job -> status = 2;
+      p = 0;
+      while(background_jobs[p] != NULL) {
+        if (new_job->status > 0) new_job->status--;
+        p++;
+      }
       background_jobs[*background_jobs_count] = new_job;
 
       printf("[%d] %d\n", new_job->number, new_job->pid);
