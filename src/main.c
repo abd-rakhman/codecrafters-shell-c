@@ -154,7 +154,7 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
   if (strcmp(args[1], "-p") == 0) {
     const char *cmd = args[2];
     if (cmd == NULL) {
-      printf("complete: your function is not complete\n");
+      printf("complete: invalid format\n");
       return ;
     }
     const char *path = compspec_get_path(compspecs, cmd);
@@ -167,12 +167,19 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
     const char *path = args[2];
     const char *cmd = args[3];
     if (path == NULL || cmd == NULL) {
-      printf("complete: your function is not complete\n");
+      printf("complete: invalid format\n");
       return ;
     }
     compspec_add_path(compspecs, cmd, path);
-  } else {
-    printf("complete: incorrect format\n");
+  } else if (strcmp(args[1], "-r") == 0) {
+    const char *cmd = args[2];
+    if (cmd == NULL) {
+      printf("complete: invalid format\n");
+      return ;
+    }
+    compspec_remove_path(compspecs, cmd);
+  }else {
+    printf("complete: invalid format\n");
   }
 }
 

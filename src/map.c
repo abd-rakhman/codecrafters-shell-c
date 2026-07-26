@@ -35,6 +35,32 @@ char *map_get(Map *map, const char *key) {
   return NULL;
 }
 
+static void swap(char **a, char **b) {
+  char *temp = *a;
+  *a = *b;
+  *b = temp;
+}
+
+void map_remove(Map *map, const char *key) {
+  int pos = -1;
+  for (int i = 0; i < map->size; i++) {
+    if (strcmp(map->keys[i], key) == 0) {
+      pos = i;
+      break;
+    }
+  }
+  if (pos == -1) {
+    return ;
+  }
+  if (pos != map->size - 1) {
+    swap(&map->values[pos], &map->values[map->size-1]);
+    swap(&map->keys[map->size-1], &map->keys[pos]);
+  }
+  free(map->keys[map->size-1]);
+  free(map->values[map->size-1]);
+  map->size--;
+}
+
 void map_destroy(Map *map) {
   for (int i = 0; i < map->size; i++) {
     free(map->keys[i]);

@@ -19,12 +19,16 @@ Compspec *compspec_create(void) {
   return compspec;
 }
 
-void compspec_add_path(Compspec *compspec, const char *key, const char *value) {
-  map_add(compspec->map, key, value);
+void compspec_add_path(Compspec *compspec, const char *command, const char *path) {
+  map_add(compspec->map, command, path);
 }
 
-char *compspec_get_path(Compspec *compspec, const char *key) {
-  return map_get(compspec->map, key);
+char *compspec_get_path(Compspec *compspec, const char *command) {
+  return map_get(compspec->map, command);
+}
+
+void compspec_remove_path(Compspec *compspec, const char *command) {
+  map_remove(compspec->map, command);
 }
 
 void compspec_run(Compspec *compspec, char **completions, int *count, const char *command, const char *prefix, const char *word_before_prefix) {
