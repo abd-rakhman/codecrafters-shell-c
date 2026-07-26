@@ -27,10 +27,10 @@ char *compspec_get_path(Compspec *compspec, const char *key) {
   return map_get(compspec->map, key);
 }
 
-char *compspec_run(Compspec *compspec, const char *command, const char *prefix, const char *word_before_prefix) {
+void compspec_run(Compspec *compspec, char **completions, int *count, const char *command, const char *prefix, const char *word_before_prefix) {
   char *path = compspec_get_path(compspec, command);
   if (path == NULL) {
-    return NULL;
+    return ;
   }
   int pipefd[2];
   pipe(pipefd);
@@ -55,24 +55,28 @@ char *compspec_run(Compspec *compspec, const char *command, const char *prefix, 
     close(pipefd[1]);
   } else {
     perror("fork");
-    return NULL;
+    return ;
   }
 
   FILE *stream = fdopen(pipefd[0], "r");
   char *line = NULL;
   size_t len = 0;
-  if (getline(&line, &len, stream) < 0) {
-    free(line);
-    line = NULL;
-  } else {
+  while (getline(&line, &len, stream) != -1) {
     size_t n = strlen(line);
     if (n > 0 && line[n - 1] == '\n') {
       line[n - 1] = '\0';
     }
+
+    int prefix_len = strlen(prefix);
+    char *suffix = line + prefix_len;
+    completions[*count] = strdup(suffix);
+    (*count)++;
+    line = NULL;
+    len = 0;
   }
 
+  free(line);
   fclose(stream);
-  return line;
 }
 
 
