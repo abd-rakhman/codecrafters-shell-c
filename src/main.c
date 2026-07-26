@@ -12,7 +12,7 @@
 
 #define BUFFER_SIZE 1024
 
-const char *builtins[] = {"echo", "type", "exit", "pwd", "complete", NULL};
+const char *builtins[] = {"echo", "type", "exit", "pwd", "complete", "jobs", NULL};
 int stdout_fd, stderr_fd;
 
 static int is_builtin(const char *cmd) {
@@ -183,6 +183,10 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
   }
 }
 
+static void jobs_command(void) {
+  printf("\n");
+}
+
 static void execute_command(char *args[]) {
   char *path = find_executable(args[0]);
   if (path == NULL) {
@@ -293,6 +297,7 @@ void execute(Compspec *compspecs, char line[], int line_len) {
   else if (strcmp(args[0], "pwd") == 0) pwd_command();
   else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
   else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
+  else if (strcmp(args[0], "jobs") == 0) complete_command(compspecs, args, n);
   else execute_command(args);
 
   dup2(stdout_fd, 1);
