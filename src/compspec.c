@@ -27,7 +27,7 @@ char *compspec_get_path(Compspec *compspec, const char *key) {
   return map_get(compspec->map, key);
 }
 
-char *compspec_run(Compspec *compspec, const char *command) {
+char *compspec_run(Compspec *compspec, const char *command, const char *prefix, const char *word_before_prefix) {
   char *path = compspec_get_path(compspec, command);
   if (path == NULL) {
     return NULL;
@@ -40,7 +40,11 @@ char *compspec_run(Compspec *compspec, const char *command) {
     close(pipefd[0]); // closing read pipe
     dup2(pipefd[1], STDOUT_FILENO); // redirecting execution to write pipe
     close(pipefd[1]);
-    execv(path, NULL); // executing
+    char *args[4];
+    args[1] = (char *)command;
+    args[2] = (char *)prefix;
+    args[3] = (char *)word_before_prefix;
+    execv(path, args); // executing
     perror("execv");
     exit(1);
   } else if (pid > 0) {

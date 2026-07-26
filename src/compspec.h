@@ -7,7 +7,7 @@ Compspec *compspec_create(void);
 
 void compspec_add_path(Compspec *compspec, const char *key, const char *value);
 char *compspec_get_path(Compspec *compspec, const char *key);
-char *compspec_run(Compspec *compspec, const char *command);
+char *compspec_run(Compspec *compspec, const char *command, const char *prefix, const char *before_prefix);
 
 void compspec_destroy(Compspec *compspec);
 
