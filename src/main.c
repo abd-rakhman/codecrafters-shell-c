@@ -234,7 +234,7 @@ static void execute_command(BackgroundJob **background_jobs, int* background_job
       new_job -> number = *background_jobs_count + 1;
       p = 0;
       while(background_jobs[p] != NULL) {
-        if (background_jobs[p]->status > 0) new_job->status--;
+        if (background_jobs[p]->status > 0) background_jobs[p]->status--;
         p++;
       }
       new_job -> status = 2;
