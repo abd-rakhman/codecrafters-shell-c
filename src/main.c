@@ -403,8 +403,6 @@ static void apply_completions(char *line, int *len, const char *word, int *tab_c
   *tab_count = 0;
 }
 
-char *c
-
 static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count, Trie *trie) {
   char **args = malloc(BUFFER_SIZE * sizeof(char *));
   int argc = 0;
