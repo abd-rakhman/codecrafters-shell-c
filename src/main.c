@@ -232,12 +232,12 @@ static void execute_command(BackgroundJob **background_jobs, int* background_job
         p++;
       }
       new_job -> number = *background_jobs_count + 1;
-      new_job -> status = 2;
       p = 0;
       while(background_jobs[p] != NULL) {
         if (new_job->status > 0) new_job->status--;
         p++;
       }
+      new_job -> status = 2;
       background_jobs[*background_jobs_count] = new_job;
       (*background_jobs_count)++;
 
