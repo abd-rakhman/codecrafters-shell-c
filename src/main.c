@@ -418,18 +418,26 @@ static void handle_tab(Compspec *compspec, char *line, int *len, int *tab_count,
   }
 
   if (argc >= 1 && compspec_get_path(compspec, args[0]) != NULL) {
-    char *prefix = (argc > 1 ? args[argc-1] : "");
-    char *word_before_prefix = (argc > 2 ? args[1] : "");
-    char *completion = compspec_run(compspec, args[0], prefix, word_before_prefix);
-    if (completion == NULL) {
+    const char *prefix = trailing_space ? "" : (argc > 1 ? args[argc - 1] : "");
+    const char *word_before = trailing_space
+      ? args[argc - 1]
+      : (argc > 1 ? args[argc - 2] : "");
+    char *completion = compspec_run(compspec, args[0], prefix, word_before);
+    if (completion == NULL || completion[0] == '\0') {
       printf("\a");
-      return ;
+    } else {
+      const char *suffix = completion;
+      size_t prefix_len = strlen(prefix);
+      if (strncmp(completion, prefix, prefix_len) == 0) {
+        suffix = completion + prefix_len;
+      }
+      append_to_line(line, len, suffix);
+      line[(*len)++] = ' ';
+      putchar(' ');
     }
-    append_to_line(line, len, completion);
-    line[(*len)++] = ' ';
-    putchar(' ');
     free(completion);
-    return ;
+    free_str_array(args, argc);
+    return;
   }
 
   const char *token = trailing_space ? "" : (argc > 0 ? args[argc - 1] : "");

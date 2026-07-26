@@ -37,14 +37,17 @@ char *compspec_run(Compspec *compspec, const char *command, const char *prefix, 
 
   pid_t pid = fork();
   if (pid == 0) {
-    close(pipefd[0]); // closing read pipe
-    dup2(pipefd[1], STDOUT_FILENO); // redirecting execution to write pipe
+    close(pipefd[0]);
+    dup2(pipefd[1], STDOUT_FILENO);
     close(pipefd[1]);
-    char *args[4];
-    args[1] = (char *)command;
-    args[2] = (char *)prefix;
-    args[3] = (char *)word_before_prefix;
-    execv(path, args); // executing
+    char *argv[] = {
+      path,
+      (char *)command,
+      (char *)prefix,
+      (char *)word_before_prefix,
+      NULL,
+    };
+    execv(path, argv);
     perror("execv");
     exit(1);
   } else if (pid > 0) {
@@ -52,19 +55,23 @@ char *compspec_run(Compspec *compspec, const char *command, const char *prefix, 
     close(pipefd[1]);
   } else {
     perror("fork");
+    return NULL;
   }
 
   FILE *stream = fdopen(pipefd[0], "r");
   char *line = NULL;
   size_t len = 0;
-  getline(&line, &len, stream);
-  size_t n = strlen(line);
-  if (n > 0 && line[n - 1] == '\n') {
-    line[n - 1] = '\0';
+  if (getline(&line, &len, stream) < 0) {
+    free(line);
+    line = NULL;
+  } else {
+    size_t n = strlen(line);
+    if (n > 0 && line[n - 1] == '\n') {
+      line[n - 1] = '\0';
+    }
   }
-  
+
   fclose(stream);
-  free(path);
   return line;
 }
 
