@@ -195,9 +195,9 @@ static void jobs_command(BackgroundJob **background_jobs) {
   int p = 0;
   while (background_jobs[p] != NULL) {
     if (!background_jobs[p]->is_running) {
+      p++;
       continue;
     }
-
 
     int status;
     pid_t ret = waitpid(background_jobs[p]->pid, &status, WNOHANG);
