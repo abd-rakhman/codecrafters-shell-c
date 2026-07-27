@@ -59,6 +59,8 @@ void jobs_add(Jobs *jobs, int pid, char *args[]) {
 	job->number = jobs->end->number + 1;
 	job_add_after(job, jobs->end);
 	jobs->end = job;
+
+	printf("[%d] %d\n", job->number, job->pid);
 }
 
 void jobs_print(Jobs *jobs) {
