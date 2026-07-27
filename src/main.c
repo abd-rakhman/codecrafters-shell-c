@@ -16,7 +16,7 @@ typedef struct {
   int number;
   int pid;
   char **args;
-  int status;
+  int latest_run;
   bool is_running;
 } BackgroundJob;
 
@@ -192,12 +192,24 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
 }
 
 static void jobs_command(BackgroundJob **background_jobs) {
-  int p = 0; 
+  int p = 0;
   while (background_jobs[p] != NULL) {
-    char status = ' ';
-    if (background_jobs[p]->status == 1) status = '-';
-    if (background_jobs[p]->status == 2) status = '+';
-    printf("[%d]%c  %-24s", background_jobs[p]->number, status, background_jobs[p]->is_running ? "Running" : "Done");
+    if (!background_jobs[p]->is_running) {
+      continue;
+    }
+
+
+    int status;
+    pid_t ret = waitpid(background_jobs[p]->pid, &status, WNOHANG);
+
+    if (ret == background_jobs[p]->pid) {
+      background_jobs[p]->is_running = false;
+    }
+
+    char latest_run = ' ';
+    if (background_jobs[p]->latest_run == 1) latest_run = '-';
+    if (background_jobs[p]->latest_run == 2) latest_run = '+';
+    printf("[%d]%c  %-24s", background_jobs[p]->number, latest_run, background_jobs[p]->is_running ? "Running" : "Done");
     int i = 0;
     while (background_jobs[p]->args[i] != NULL) {
       if (i > 0) printf(" ");
@@ -234,10 +246,10 @@ static void execute_command(BackgroundJob **background_jobs, int* background_job
       new_job -> number = *background_jobs_count + 1;
       p = 0;
       while(background_jobs[p] != NULL) {
-        if (background_jobs[p]->status > 0) background_jobs[p]->status--;
+        if (background_jobs[p]->latest_run > 0) background_jobs[p]->latest_run--;
         p++;
       }
-      new_job -> status = 2;
+      new_job -> latest_run = 2;
       background_jobs[*background_jobs_count] = new_job;
       (*background_jobs_count)++;
 
