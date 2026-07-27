@@ -192,6 +192,19 @@ static void complete_command(Compspec *compspecs, char *args[], int argc) {
 }
 
 static void jobs_command(BackgroundJob **background_jobs) {
+  // Recalculate +/- from current job numbers (highest = +, second = -)
+  int first = -1, second = -1;
+  for (int i = 0; background_jobs[i] != NULL; i++) {
+    if (!background_jobs[i]->is_running) continue;
+    int n = background_jobs[i]->number;
+    if (n > first) {
+      second = first;
+      first = n;
+    } else if (n > second) {
+      second = n;
+    }
+  }
+
   int p = 0;
   while (background_jobs[p] != NULL) {
     if (!background_jobs[p]->is_running) {
@@ -207,8 +220,8 @@ static void jobs_command(BackgroundJob **background_jobs) {
     }
 
     char latest_run = ' ';
-    if (background_jobs[p]->latest_run == 1) latest_run = '-';
-    if (background_jobs[p]->latest_run == 2) latest_run = '+';
+    if (background_jobs[p]->number == second) latest_run = '-';
+    if (background_jobs[p]->number == first) latest_run = '+';
     printf("[%d]%c  %-24s", background_jobs[p]->number, latest_run, background_jobs[p]->is_running ? "Running" : "Done");
     int i = 0;
     while (background_jobs[p]->args[i] != NULL) {
