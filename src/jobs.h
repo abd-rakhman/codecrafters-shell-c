@@ -15,7 +15,7 @@ typedef struct Jobs Jobs;
 
 Jobs *jobs_create(void);
 
-void jobs_add(Jobs *jobs, int pid, char *args[]);
+int jobs_add(Jobs *jobs, int pid, char *args[]);
 void jobs_print(Jobs *jobs);
 void jobs_reap(Jobs *jobs);
 

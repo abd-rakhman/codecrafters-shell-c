@@ -209,7 +209,8 @@ static void execute_command(Jobs* jobs, bool is_background, char *args[]) {
 		exit(1);
 	} else if (pid > 0) {
 		if (is_background) {
-			jobs_add(jobs, pid, args);
+			int n = jobs_add(jobs, pid, args);
+			printf("[%d] %d\n", n, pid);
 		} else {
 			waitpid(pid, NULL, 0);
 		}

@@ -9,13 +9,11 @@
 
 struct Jobs {
 	Job *begin, *end;
-	int size;
 };
 
 
 Jobs *jobs_create(void) {
 	Jobs *new_jobs = calloc(1, sizeof(Jobs));
-	new_jobs->size = 0;
 	return new_jobs;
 }
 
@@ -39,8 +37,7 @@ static char get_job_marker(Job *job) {
 	return ' ';
 }
 
-void jobs_add(Jobs *jobs, int pid, char *args[]) {
-	jobs->size++;
+int jobs_add(Jobs *jobs, int pid, char *args[]) {
 	Job *job = calloc(1, sizeof(Job));
 	job->is_running = true;
 	job->pid = pid;
@@ -53,14 +50,14 @@ void jobs_add(Jobs *jobs, int pid, char *args[]) {
 		job->number = 1;
 		jobs->begin = job;
 		jobs->end = job;
-		return ;
+		return 1;
 	}
 
 	job->number = jobs->end->number + 1;
 	job_add_after(job, jobs->end);
 	jobs->end = job;
 
-	printf("[%d] %d\n", job->number, job->pid);
+	return job->number;
 }
 
 void jobs_print(Jobs *jobs) {
