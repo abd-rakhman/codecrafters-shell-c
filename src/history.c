@@ -22,8 +22,9 @@ char **history_list(History *history) {
 	return history->list;
 }
 
-void history_print(History *history) {
-	for (int i = 0; i < history->size; i++) {
+void history_print(History *history, int *tail) {
+	int start = tail == NULL ? 0 : history->size - *tail;
+	for (int i = start; i < history->size; i++) {
 		printf("\t%d  %s\n", (i+1), history->list[i]);
 	}
 }

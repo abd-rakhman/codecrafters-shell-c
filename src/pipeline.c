@@ -124,8 +124,21 @@ static void complete_command(Compspec *compspecs, char *args[]) {
 	}
 }
 
-static void history_command(History *history) {
-	history_print(history);
+int *my_atoi(char *str) {
+	if (str == NULL) return NULL;
+	char *end;
+	int *value = malloc(sizeof(int));
+	*value = strtol(str, &end, 10);
+
+	if (*end != '\0') {
+		return NULL;
+	}
+
+	return value;
+}
+
+static void history_command(History *history, char **argv) {
+	history_print(history, my_atoi(argv[1]));
 }
 
 static void jobs_command(Jobs* jobs) {
@@ -184,7 +197,7 @@ static void command_execute(Command *command, History *history, Compspec *compsp
 	else if (strcmp(argv[0], "pwd") == 0) pwd_command();
 	else if (strcmp(argv[0], "cd") == 0) cd_command(argv[1]);
 	else if (strcmp(argv[0], "complete") == 0) complete_command(compspecs, argv);
-	else if (strcmp(argv[0], "history") == 0) history_command(history);
+	else if (strcmp(argv[0], "history") == 0) history_command(history, argv);
 	else if (strcmp(argv[0], "jobs") == 0) jobs_command(jobs);
 	else {
 		char *path = find_executable(argv[0]);
