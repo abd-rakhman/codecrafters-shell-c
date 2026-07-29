@@ -274,17 +274,30 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 		int pipefd[2];
 		pipe(pipefd);
 
-		if (cmd1->fd[1] == -1) {
-			cmd1->fd[1] = pipefd[1];
+		pid_t pid1 = fork();
+		if (pid1 == 0) {
+			if (cmd1->fd[1] == -1) {
+				cmd1->fd[1] = pipefd[1];
+			}
+			command_execute(cmd1, compspecs, jobs);
+			close(pipefd[1]);
+			exit(0);
 		}
-		command_execute_via_child(cmd1, compspecs, jobs, pipeline->is_background);
 		close(pipefd[1]);
 
-		if (cmd2->fd[0] == -1) {
-			cmd2->fd[0] = pipefd[0];
+		pid_t pid2 = fork();
+		if (pid2 == 0) {
+			if (cmd2->fd[0] == -1) {
+				cmd2->fd[0] = pipefd[0];
+			}
+			command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
+			close(pipefd[0]);
+			exit(0);
 		}
-		command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
 		close(pipefd[0]);
+
+		waitpid(pid1, NULL, 0);
+		waitpid(pid2, NULL, 0);
 	}
 }
 
