@@ -154,7 +154,6 @@ static void apply_trailing_redirect(Command *command) {
 	int open_flags = append ? (O_WRONLY | O_CREAT | O_APPEND) : (O_WRONLY | O_CREAT | O_TRUNC);
 	int fd = open(argv[*n - 1], open_flags, 0644);
 	command->fd[fd_target] = fd;
-	free(argv[*n-2]);
 	argv[*n - 2] = NULL;
 }
 
@@ -225,7 +224,6 @@ Pipeline *pipeline_create(char **argv, int argc) {
 	Pipeline *pipeline = malloc(sizeof(Pipeline));
 	pipeline->is_background = (argc >= 1 && strcmp(argv[argc-1], "&") == 0);
 	if (pipeline->is_background) {
-		free(argv[--argc]);
 		argv[--argc] = NULL;
 	}
 
@@ -266,6 +264,7 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 			command_execute_via_child(cmd, compspecs, jobs, pipeline->is_background);
 		}
 	}
+
 
 	if (pipeline->n == 2) {
 		Command* cmd1 = pipeline->cmds[0];
