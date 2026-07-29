@@ -21,7 +21,7 @@ struct Pipeline {
 
 // ------------------- EXECUTING LAYER ----------------------
 
-const char *builtins[] = {"echo", "type", "exit", "pwd", "cd", "complete", "jobs", NULL};
+const char *builtins[] = {"echo", "type", "exit", "pwd", "cd", "complete", "jobs", "history", NULL};
 
 static int is_builtin(const char *cmd) {
 	for (int i = 0; builtins[i] != NULL; i++) {
