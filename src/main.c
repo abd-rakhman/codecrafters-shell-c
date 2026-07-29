@@ -7,48 +7,18 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <dirent.h>
+#include "pipeline.h"
 #include "trie.h"
 #include "compspec.h"
 #include "jobs.h"
 
 #define BUFFER_SIZE 1024
 
-typedef struct {
-	int number;
-	int pid;
-	char **args;
-	int latest_run;
-	bool is_running;
-} BackgroundJob;
-
-const char *builtins[] = {"echo", "type", "exit", "pwd", "complete", "jobs", NULL};
 int stdout_fd, stderr_fd;
 
-static int is_builtin(const char *cmd) {
-	for (int i = 0; builtins[i] != NULL; i++) {
-		if (strcmp(cmd, builtins[i]) == 0) return 1;
-	}
-	return 0;
-}
-
-static char *find_executable(const char *cmd) {
-	char *path_env = getenv("PATH");
-	if (path_env == NULL) return NULL;
-
-	char *path = strdup(path_env);
-	char *result = NULL;
-
-	for (char *dir = strtok(path, ":"); dir != NULL; dir = strtok(NULL, ":")) {
-		char full_path[BUFFER_SIZE];
-		snprintf(full_path, sizeof(full_path), "%s/%s", dir, cmd);
-		if (access(full_path, X_OK) == 0) {
-			result = strdup(full_path);
-			break;
-		}
-	}
-
-	free(path);
-	return result;
+static void free_str_array(char **args, int argc) {
+	for (int i = 0; i < argc; i++) free(args[i]);
+	free(args);
 }
 
 static void find_all_executables(int *count, char **executables) {
@@ -119,106 +89,6 @@ static void list_path_completions(const char *dir_path, const char *prefix, int 
 	closedir(dir);
 }
 
-static void echo_command(char *args[]) {
-	for (int i = 1; args[i] != NULL; i++) {
-		printf("%s%s", args[i], args[i + 1] != NULL ? " " : "");
-	}
-	printf("\n");
-}
-
-static void cd_command(const char* path) {
-	if (path == NULL || strcmp(path, "~") == 0) {
-		path = getenv("HOME");
-	}
-	if (path != NULL && chdir(path) != 0) {
-		printf("cd: %s: No such file or directory\n", path);
-	}
-}
-
-static void type_command(const char *cmd) {
-	if (is_builtin(cmd)) {
-		printf("%s is a shell builtin\n", cmd);
-		return;
-	}
-	char *path = find_executable(cmd);
-	if (path != NULL) {
-		printf("%s is %s\n", cmd, path);
-		free(path);
-	} else {
-		printf("%s: not found\n", cmd);
-	}
-}
-
-static void pwd_command(void) {
-	char cwd[BUFFER_SIZE];
-
-	if (getcwd(cwd, sizeof(cwd)) != NULL) {
-		printf("%s\n", cwd);
-	} else {
-		perror("pwd");
-	}
-}
-
-static void complete_command(Compspec *compspecs, char *args[], int argc) {
-	if (strcmp(args[1], "-p") == 0) {
-		const char *cmd = args[2];
-		if (cmd == NULL) {
-			printf("complete: invalid format\n");
-			return ;
-		}
-		const char *path = compspec_get_path(compspecs, cmd);
-		if (path == NULL) {
-			printf("complete: %s: no completion specification\n", cmd);
-		} else {
-			printf("complete -C '%s' %s\n", path, cmd);
-		}
-	} else if (strcmp(args[1], "-C") == 0) {
-		const char *path = args[2];
-		const char *cmd = args[3];
-		if (path == NULL || cmd == NULL) {
-			printf("complete: invalid format\n");
-			return ;
-		}
-		compspec_add_path(compspecs, cmd, path);
-	} else if (strcmp(args[1], "-r") == 0) {
-		const char *cmd = args[2];
-		if (cmd == NULL) {
-			printf("complete: invalid format\n");
-			return ;
-		}
-		compspec_remove_path(compspecs, cmd);
-	}else {
-		printf("complete: invalid format\n");
-	}
-}
-
-static void jobs_command(Jobs* jobs) {
-	jobs_print(jobs);
-}
-
-static void execute_command(Jobs* jobs, bool is_background, char *args[]) {
-	char *path = find_executable(args[0]);
-	if (path == NULL) {
-		printf("%s: command not found\n", args[0]);
-		return;
-	}
-	pid_t pid = fork();
-	if (pid == 0) {
-		execv(path, args);
-		perror("execv");
-		exit(1);
-	} else if (pid > 0) {
-		if (is_background) {
-			int n = jobs_add(jobs, pid, args);
-			printf("[%d] %d\n", n, pid);
-		} else {
-			waitpid(pid, NULL, 0);
-		}
-	} else {
-		perror("fork");
-	}
-	free(path);
-}
 
 static void configure_terminal(void) {
 	struct termios old, raw;
@@ -231,32 +101,6 @@ static void configure_terminal(void) {
 	tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 }
 
-static void apply_trailing_redirect(char *args[], int n) {
-	if (n <= 2) return;
-
-	int fd_target = 0;
-	bool append = false;
-
-	if (strcmp(args[n - 2], "1>") == 0 || strcmp(args[n - 2], ">") == 0) {
-		fd_target = 1;
-	} else if (strcmp(args[n - 2], "1>>") == 0 || strcmp(args[n - 2], ">>") == 0) {
-		fd_target = 1;
-		append = true;
-	} else if (strcmp(args[n - 2], "2>") == 0) {
-		fd_target = 2;
-	} else if (strcmp(args[n - 2], "2>>") == 0) {
-		fd_target = 2;
-		append = true;
-	}
-
-	if (!fd_target) return;
-
-	int open_flags = append ? (O_WRONLY | O_CREAT | O_APPEND) : (O_WRONLY | O_CREAT | O_TRUNC);
-	int fd = open(args[n - 1], open_flags, 0644);
-	dup2(fd, fd_target);
-	close(fd);
-	args[n - 2] = NULL;
-}
 
 void parse_line(const char *line, int line_len, int *n, char **args) {
 	int tok_len = 0;
@@ -292,36 +136,24 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
 	args[*n] = NULL;
 }
 
+
+
+
 void execute(Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
 	int n = 0;
-	char *args[BUFFER_SIZE];
-	
+	char **args = malloc(BUFFER_SIZE * sizeof(char*));
 	parse_line(line, line_len, &n, args);
 
-	bool is_background = (n >= 1 && strcmp(args[n-1], "&") == 0);
-	if (is_background) {
-		args[n-1] = NULL;
-	}
-
-	if (n == 0) {
+	Pipeline *pipeline = pipeline_create(args, n);
+	free_str_array(args, n);
+	if (pipeline_empty(pipeline)) {
 		jobs_reap(jobs);
 		printf("$ ");
 		return;
 	}
 
-	apply_trailing_redirect(args, n);
-
-	if (strcmp(args[0], "exit") == 0) exit(0);
-	else if (strcmp(args[0], "echo") == 0) echo_command(args);
-	else if (strcmp(args[0], "type") == 0) type_command(args[1] ? args[1] : "");
-	else if (strcmp(args[0], "pwd") == 0) pwd_command();
-	else if (strcmp(args[0], "cd") == 0) cd_command(args[1]);
-	else if (strcmp(args[0], "complete") == 0) complete_command(compspecs, args, n);
-	else if (strcmp(args[0], "jobs") == 0) jobs_command(jobs);
-	else execute_command(jobs, is_background, args);
-
-	dup2(stdout_fd, 1);
-	dup2(stderr_fd, 2);
+	pipeline_execute(pipeline, compspecs, jobs);
+	pipeline_destroy(pipeline);
 
 	jobs_reap(jobs);
 	printf("$ ");
@@ -348,12 +180,6 @@ static void handle_char(char *line, int *len, int c) {
 	putchar(c);
 }
 
-static void free_str_array(char **args, int argc) {
-	for (int i = 0; i < argc; i++) free(args[i]);
-	free(args);
-}
-
-/* Owns the returned dir string; *filename points into token (do not free). */
 static char *split_path_token(const char *token, const char **filename) {
 	const char *last_slash = strrchr(token, '/');
 	if (last_slash == NULL) {
@@ -532,6 +358,8 @@ int main(void) {
 	run_repl(trie, compspecs, jobs); 
 
 	trie_destroy(trie);
+	compspec_destroy(compspecs);
+	jobs_destroy(jobs);
 	close(stdout_fd);
 	return 0;
 }

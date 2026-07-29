@@ -1,5 +1,5 @@
 all:
-	gcc src/main.c src/compspec.c src/map.c src/trie.c src/jobs.c -o shell
+	gcc src/main.c src/compspec.c src/map.c src/trie.c src/jobs.c src/pipeline.c -o shell
 
 run: all
 	./shell

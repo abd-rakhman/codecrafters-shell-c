@@ -91,3 +91,13 @@ void jobs_reap(Jobs *jobs) {
 		current = next;
 	}
 }
+
+void jobs_destroy(Jobs *jobs) {
+	Job *current = jobs->begin;
+	while (current != NULL) {
+		Job *next = current->right;
+		job_remove(jobs, current);
+		current = next;
+	}
+	free(jobs);
+}
