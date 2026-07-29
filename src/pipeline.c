@@ -267,27 +267,36 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 	}
 
 	pid_t *pids = malloc(n * sizeof(pid_t));
-	int **pipefds = malloc(n * sizeof(int*));
-	for (int i = 0; i < n; i++) {
+	int **pipefds = malloc((n-1) * sizeof(int*));
+	for (int i = 0; i + 1 < n; i++) {
 		pipefds[i] = malloc(2 * sizeof(int));
 		pipe(pipefds[i]);
+	}
+	for (int i = 0; i < n; i++) {
+		Command *cmd = pipeline->cmds[i];
 
 		pid_t pid = fork();
-		Command *cmd = pipeline->cmds[i];
 		if (pid == 0) {
-			if (i != 0 && cmd->fd[0] == -1) {
-				cmd->fd[0] = pipefds[i][0];
+			if (i > 0 && cmd->fd[0] == -1) {
+				cmd->fd[0] = pipefds[i-1][0];
 			}
-			if (i + 1 != n && cmd->fd[1] == -1) {
+			if (i + 1 < n && cmd->fd[1] == -1) {
 				cmd->fd[1] = pipefds[i][1];
 			}
 			command_execute(cmd, compspecs, jobs);
-			close(pipefds[i][0]);
-			close(pipefds[i][1]);
+			if (i + 1 < n && cmd->fd[1] == -1) {
+				close(pipefds[i][1]);
+			}
+			if (i > 0 && cmd->fd[0] == -1) {
+				close(pipefds[i-1][0]);
+			}
 			exit(0);
 		}
+		if (i + 1 < n) close(pipefds[i][1]);
+		pids[i] = pid;
+	}
+	for (int i = 0; i + 1 < n; i++) {
 		close(pipefds[i][0]);
-		close(pipefds[i][1]);
 	}
 
 	for (int i = 0; i < n; i++) {
