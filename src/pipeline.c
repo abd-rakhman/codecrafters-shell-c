@@ -264,6 +264,7 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 		} else {
 			command_execute_via_child(cmd, compspecs, jobs, pipeline->is_background);
 		}
+		return ;
 	}
 
 	pid_t *pids = malloc(n * sizeof(pid_t));
