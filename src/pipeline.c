@@ -171,7 +171,6 @@ static void command_execute(Command *command, Compspec *compspecs, Jobs *jobs) {
 		if (command->fd[i] != -1) {
 			dup2(command->fd[i], i);
 			close(command->fd[i]);
-			command->fd[i] = -1;
 		}
 	}
 	char **argv = command->argv;
@@ -226,6 +225,7 @@ Pipeline *pipeline_create(char **argv, int argc) {
 	Pipeline *pipeline = malloc(sizeof(Pipeline));
 	pipeline->is_background = (argc >= 1 && strcmp(argv[argc-1], "&") == 0);
 	if (pipeline->is_background) {
+		free(argv[--argc]);
 		argv[--argc] = NULL;
 	}
 
@@ -276,17 +276,15 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 
 		if (cmd1->fd[1] == -1) {
 			cmd1->fd[1] = pipefd[1];
-		} else {
-			close(pipefd[1]);
 		}
 		command_execute_via_child(cmd1, compspecs, jobs, pipeline->is_background);
+		close(pipefd[1]);
 
-		if (cmd1->fd[0] == -1) {
-			cmd1->fd[0] = pipefd[0];
-		} else {
-			close(pipefd[0]);
+		if (cmd2->fd[0] == -1) {
+			cmd2->fd[0] = pipefd[0];
 		}
 		command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
+		close(pipefd[0]);
 	}
 }
 
