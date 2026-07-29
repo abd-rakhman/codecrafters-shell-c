@@ -8,12 +8,14 @@
 struct History {
 	char **list;
 	int size;
+	int cursor;
 };
 
 History *history_access(void) {
 	History *history = malloc(sizeof(History));
 	history->list = malloc(BUFFER_SIZE * sizeof(char*));
 	history->size = 0;
+	history->cursor = 0;
 	
 	return history;
 }
@@ -31,6 +33,23 @@ void history_print(History *history, int *tail) {
 
 void history_add(History *history, char *line) {
 	history->list[history->size++] = strdup(line);
+	history->cursor = history->size;
+}
+
+char *history_move_cursor_up(History *history) {
+	if (history->cursor > 0) {
+		history->cursor--;
+		return history->list[history->cursor];
+	}
+	return NULL;
+}
+
+char *history_move_cursor_down(History *history) {
+	if (history->cursor+1 < history->size) {
+		history->cursor++;
+		return history->list[history->cursor];
+	}
+	return NULL;
 }
 
 void history_destroy(History *history) {

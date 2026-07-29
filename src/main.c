@@ -137,9 +137,6 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
 	args[*n] = NULL;
 }
 
-
-
-
 void execute(History *history, Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
 	int n = 0;
 	char **args = malloc(BUFFER_SIZE * sizeof(char*));
@@ -169,6 +166,32 @@ static void handle_backspace(char *line, int *len) {
 	}
 }
 
+static void append_to_line(char *line, int *len, const char *s) {
+	for (; *s; s++) {
+		line[(*len)++] = *s;
+		putchar(*s);
+	}
+	line[*len] = '\0';
+}
+
+static void remove_line(char *line, int *len) {
+	while(*len > 0) {
+		(*len)--;
+		line[*len] = '\0';
+		write(STDOUT_FILENO, "\b \b", 3);
+	}
+}
+
+static void handle_up_down_arrow(History *history, bool up, char *line, int *len) {
+	remove_line(line, len);
+
+	char *new_line;
+	if (up) new_line = history_move_cursor_up(history);
+	else new_line = history_move_cursor_down(history);
+
+	if (line != NULL) append_to_line(line, len, new_line);
+}
+
 static void handle_enter(History *history, Compspec *compspecs, Jobs* jobs, char *line, int *len) {
 	printf("\n");
 	execute(history, compspecs, jobs, line, *len);
@@ -194,13 +217,6 @@ static char *split_path_token(const char *token, const char **filename) {
 	return strndup(token, dir_len);
 }
 
-static void append_to_line(char *line, int *len, const char *s) {
-	for (; *s; s++) {
-		line[(*len)++] = *s;
-		putchar(*s);
-	}
-	line[*len] = '\0';
-}
 
 static size_t common_prefix_len(char **completions, int count) {
 	size_t n = strlen(completions[0]);
@@ -332,7 +348,14 @@ static void run_repl(History *history, Trie *trie, Compspec *compspecs, Jobs* jo
 	line[0] = '\0';
 
 	while ((c = getchar()) != EOF) {
-		if (c == 127 || c == 8) {
+		if (c == 27) {
+			int c2 = getchar();
+			if (c2 == '[') {
+				int c3 = getchar();
+				if (c3 == 'A') handle_up_down_arrow(history, true, line, &len);
+				else if (c3 == 'B') handle_up_down_arrow(history, false, line, &len);
+			}
+		} else if (c == 127 || c == 8) {
 			handle_backspace(line, &len);
 			tab_count = 0;
 		} else if (c == '\n') {
