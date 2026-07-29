@@ -256,7 +256,8 @@ Pipeline *pipeline_create(char **argv, int argc) {
 
 
 void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
-	if (pipeline->n == 1) {
+	int n = pipeline->n;
+	if (n == 1) {
 		Command *cmd = pipeline->cmds[0];
 		if (is_builtin(cmd->argv[0]) && !pipeline->is_background) {
 			command_execute(cmd, compspecs, jobs);
@@ -265,39 +266,63 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 		}
 	}
 
+	pid_t *pids = malloc(n * sizeof(pid_t));
+	int **pipefds = malloc(n * sizeof(int*));
+	for (int i = 0; i < n; i++) {
+		pipefds[i] = malloc(2 * sizeof(int));
+		pipe(pipefds[i]);
 
-	if (pipeline->n == 2) {
-		Command* cmd1 = pipeline->cmds[0];
-		Command* cmd2 = pipeline->cmds[1];
-
-		int pipefd[2];
-		pipe(pipefd);
-
-		pid_t pid1 = fork();
-		if (pid1 == 0) {
-			if (cmd1->fd[1] == -1) {
-				cmd1->fd[1] = pipefd[1];
+		pid_t pid = fork();
+		Command *cmd = pipeline->cmds[i];
+		if (pid == 0) {
+			if (i != 0 && cmd->fd[0] == -1) {
+				cmd->fd[0] = pipefds[i][0];
 			}
-			command_execute(cmd1, compspecs, jobs);
-			close(pipefd[1]);
+			if (i + 1 != n && cmd->fd[1] == -1) {
+				cmd->fd[1] = pipefds[i][1];
+			}
+			command_execute(cmd, compspecs, jobs);
+			close(pipefds[i][0]);
+			close(pipefds[i][1]);
 			exit(0);
 		}
-		close(pipefd[1]);
-
-		pid_t pid2 = fork();
-		if (pid2 == 0) {
-			if (cmd2->fd[0] == -1) {
-				cmd2->fd[0] = pipefd[0];
-			}
-			command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
-			close(pipefd[0]);
-			exit(0);
-		}
-		close(pipefd[0]);
-
-		waitpid(pid1, NULL, 0);
-		waitpid(pid2, NULL, 0);
+		close(pipefds[i][0]);
+		close(pipefds[i][1]);
 	}
+
+	for (int i = 0; i < n; i++) {
+		waitpid(pids[i], NULL, 0);
+	}
+	// Command* cmd1 = pipeline->cmds[0];
+	// Command* cmd2 = pipeline->cmds[1];
+	//
+	// int pipefd[2];
+	// pipe(pipefd);
+	//
+	// pid_t pid1 = fork();
+	// if (pid1 == 0) {
+	// 	if (cmd1->fd[1] == -1) {
+	// 		cmd1->fd[1] = pipefd[1];
+	// 	}
+	// 	command_execute(cmd1, compspecs, jobs);
+	// 	close(pipefd[1]);
+	// 	exit(0);
+	// }
+	// close(pipefd[1]);
+	//
+	// pid_t pid2 = fork();
+	// if (pid2 == 0) {
+	// 	if (cmd2->fd[0] == -1) {
+	// 		cmd2->fd[0] = pipefd[0];
+	// 	}
+	// 	command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
+	// 	close(pipefd[0]);
+	// 	exit(0);
+	// }
+	// close(pipefd[0]);
+	//
+	// waitpid(pid1, NULL, 0);
+	// waitpid(pid2, NULL, 0);
 }
 
 bool pipeline_empty(Pipeline *pipeline) {
