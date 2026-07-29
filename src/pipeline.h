@@ -1,6 +1,7 @@
 #ifndef PIPELINE_H
 #define PIPELINE_H
 
+#include "history.h"
 #include "jobs.h"
 #include "compspec.h"
 #include <stdbool.h>
@@ -17,7 +18,7 @@ typedef struct Pipeline Pipeline;
 
 Pipeline* pipeline_create(char **argv, int argc);
 bool pipeline_empty(Pipeline *pipeline);
-void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs *jobs);
+void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs, Jobs *jobs);
 
 void pipeline_destroy(Pipeline *pipeline);
 

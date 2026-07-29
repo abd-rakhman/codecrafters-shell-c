@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <dirent.h>
+#include "history.h"
 #include "pipeline.h"
 #include "trie.h"
 #include "compspec.h"
@@ -139,9 +140,10 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
 
 
 
-void execute(Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
+void execute(History *history, Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
 	int n = 0;
 	char **args = malloc(BUFFER_SIZE * sizeof(char*));
+	history_add(history, line);
 	parse_line(line, line_len, &n, args);
 
 	Pipeline *pipeline = pipeline_create(args, n);
@@ -152,7 +154,7 @@ void execute(Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
 		return;
 	}
 
-	pipeline_execute(pipeline, compspecs, jobs);
+	pipeline_execute(pipeline, history, compspecs, jobs);
 	pipeline_destroy(pipeline);
 
 	jobs_reap(jobs);
@@ -167,9 +169,9 @@ static void handle_backspace(char *line, int *len) {
 	}
 }
 
-static void handle_enter(Compspec *compspecs, Jobs* jobs, char *line, int *len) {
+static void handle_enter(History *history, Compspec *compspecs, Jobs* jobs, char *line, int *len) {
 	printf("\n");
-	execute(compspecs, jobs, line, *len);
+	execute(history, compspecs, jobs, line, *len);
 	*len = 0;
 	line[0] = '\0';
 }
@@ -321,7 +323,7 @@ static Trie *build_executables_trie(void) {
 	return trie;
 }
 
-static void run_repl(Trie *trie, Compspec *compspecs, Jobs* jobs) {
+static void run_repl(History *history, Trie *trie, Compspec *compspecs, Jobs* jobs) {
 	char line[BUFFER_SIZE];
 	int len = 0;
 	int tab_count = 0;
@@ -334,7 +336,7 @@ static void run_repl(Trie *trie, Compspec *compspecs, Jobs* jobs) {
 			handle_backspace(line, &len);
 			tab_count = 0;
 		} else if (c == '\n') {
-			handle_enter(compspecs, jobs, line, &len);
+			handle_enter(history, compspecs, jobs, line, &len);
 			tab_count = 0;
 		} else if (c == '\t') {
 			tab_count++;
@@ -350,13 +352,15 @@ int main(void) {
 	configure_terminal();
 	setbuf(stdout, NULL);
 	stdout_fd = dup(1), stderr_fd = dup(2);
+	History *history = history_access();
 	Trie* trie = build_executables_trie();
 	Compspec* compspecs = compspec_create();
 	Jobs *jobs = jobs_create();
 
 	printf("$ ");
-	run_repl(trie, compspecs, jobs); 
+	run_repl(history, trie, compspecs, jobs); 
 
+	history_destroy(history);
 	trie_destroy(trie);
 	compspec_destroy(compspecs);
 	jobs_destroy(jobs);

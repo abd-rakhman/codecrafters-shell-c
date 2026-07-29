@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include "history.h"
 #include "pipeline.h"
 #include "compspec.h"
 #include "jobs.h"
@@ -123,6 +124,10 @@ static void complete_command(Compspec *compspecs, char *args[]) {
 	}
 }
 
+static void history_command(History *history) {
+	history_print(history);
+}
+
 static void jobs_command(Jobs* jobs) {
 	jobs_print(jobs);
 }
@@ -165,7 +170,7 @@ static Command *command_create(void) {
 	return command;
 }
 
-static void command_execute(Command *command, Compspec *compspecs, Jobs *jobs) {
+static void command_execute(Command *command, History *history, Compspec *compspecs, Jobs *jobs) {
 	for (int i = 0; i < 3; i++) {
 		if (command->fd[i] != -1) {
 			dup2(command->fd[i], i);
@@ -179,6 +184,7 @@ static void command_execute(Command *command, Compspec *compspecs, Jobs *jobs) {
 	else if (strcmp(argv[0], "pwd") == 0) pwd_command();
 	else if (strcmp(argv[0], "cd") == 0) cd_command(argv[1]);
 	else if (strcmp(argv[0], "complete") == 0) complete_command(compspecs, argv);
+	else if (strcmp(argv[0], "history") == 0) history_command(history);
 	else if (strcmp(argv[0], "jobs") == 0) jobs_command(jobs);
 	else {
 		char *path = find_executable(argv[0]);
@@ -193,10 +199,10 @@ static void command_execute(Command *command, Compspec *compspecs, Jobs *jobs) {
 	dup2(stderr_fd, 2);
 }
 
-static void command_execute_via_child(Command *command, Compspec *compspecs, Jobs *jobs, bool is_background) {
+static void command_execute_via_child(Command *command, History *history, Compspec *compspecs, Jobs *jobs, bool is_background) {
 	pid_t pid = fork();
 	if (pid == 0) {
-		command_execute(command, compspecs, jobs);
+		command_execute(command, history, compspecs, jobs);
 		exit(0);
 	} else if (pid > 0) {
 		if (is_background) {
@@ -255,14 +261,14 @@ Pipeline *pipeline_create(char **argv, int argc) {
 }
 
 
-void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
+void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs, Jobs* jobs) {
 	int n = pipeline->n;
 	if (n == 1) {
 		Command *cmd = pipeline->cmds[0];
 		if (is_builtin(cmd->argv[0]) && !pipeline->is_background) {
-			command_execute(cmd, compspecs, jobs);
+			command_execute(cmd, history, compspecs, jobs);
 		} else {
-			command_execute_via_child(cmd, compspecs, jobs, pipeline->is_background);
+			command_execute_via_child(cmd, history, compspecs, jobs, pipeline->is_background);
 		}
 		return ;
 	}
@@ -284,7 +290,7 @@ void pipeline_execute(Pipeline *pipeline, Compspec *compspecs, Jobs* jobs) {
 			if (i + 1 < n && cmd->fd[1] == -1) {
 				cmd->fd[1] = pipefds[i][1];
 			}
-			command_execute(cmd, compspecs, jobs);
+			command_execute(cmd, history, compspecs, jobs);
 			if (i + 1 < n && cmd->fd[1] == -1) {
 				close(pipefds[i][1]);
 			}
