@@ -32,6 +32,7 @@ void history_read(History *history, char *path) {
 
 	while ((nread = getline(&line, &len, file)) != -1) {
 		if (nread <= 0) break;
+		line[strcspn(line, "\n")] = '\0';
 		history_add(history, line);
 	}
 }
