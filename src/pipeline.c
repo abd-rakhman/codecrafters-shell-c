@@ -161,7 +161,7 @@ void parse(char *arg, char **identifier, char **value) {
 
 bool is_identifier_valid(char *identifier) {
 	if (identifier == NULL) return false;
-	if ('0' <= identifier[0] && identifier[1] <= '9') return false;
+	if ('0' <= identifier[0] && identifier[0] <= '9') return false;
 	for (char *p = identifier; *p != '\0'; p++) {
 		if (*p == '_') continue;
 		if ('a' <= *p && *p <= 'z') continue;
