@@ -19,6 +19,11 @@ History *history_create(void) {
 	history->size = 0;
 	history->cursor = 0;
 	history->last_append = 0;
+
+	char *path = getenv("HISTFILE");
+	if (path != NULL) {
+		history_read(history, path);
+	}
 	
 	return history;
 }
