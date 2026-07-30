@@ -151,15 +151,33 @@ static void jobs_command(Jobs* jobs) {
 	jobs_print(jobs);
 }
 
+void parse(char *arg, char **variable, char **value) {
+	char *token = strtok(arg, "=");
+	*variable = token;
+	token = strtok(NULL, "=");
+	*value = token;
+}
+
 static void declare_command(Variables *variables, char **argv) {
-	if (argv[1] != NULL) {
-		if (strcmp(argv[1], "-p") == 0 && argv[2] != NULL) {
-			char *value = variables_get(variables, argv[2]);
-			if (value == NULL) {
-				printf("declare: %s: not found\n", argv[2]);
-			}
+	if (argv[1] == NULL) return ;
+
+	if (strcmp(argv[1], "-p") == 0) {
+		if (argv[2] == NULL) return;
+		char *value = variables_get(variables, argv[2]);
+		if (value == NULL) {
+			printf("declare: %s: not found\n", argv[2]);
+		} else {
+				printf("declare -- %s=\"%s\"\n", argv[2], value);
 		}
 	}
+
+	char *variable, *value;
+	parse(argv[1], &variable, &value);
+	if (variable == NULL || value == NULL) {
+		return;
+	}
+
+	variables_declare(variables, variable, value);
 
 	return ;
 }
