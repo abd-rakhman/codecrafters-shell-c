@@ -151,11 +151,25 @@ static void jobs_command(Jobs* jobs) {
 	jobs_print(jobs);
 }
 
-void parse(char *arg, char **variable, char **value) {
-	char *token = strtok(arg, "=");
-	*variable = token;
+void parse(char *arg, char **identifier, char **value) {
+	char *copy = strdup(arg);
+	char *token = strtok(copy, "=");
+	*identifier = token;
 	token = strtok(NULL, "=");
 	*value = token;
+}
+
+bool is_identifier_valid(char *identifier) {
+	if (identifier == NULL) return false;
+	if ('0' <= identifier[0] && identifier[1] <= '9') return false;
+	for (char *p = identifier; *p != '\0'; p++) {
+		if (*p == '_') continue;
+		if ('a' <= *p && *p <= 'z') continue;
+		if ('A' <= *p && *p <= 'Z') continue;
+		if ('0' <= *p && *p <= '9') continue;
+		return false;
+	}
+	return true;
 }
 
 static void declare_command(Variables *variables, char **argv) {
@@ -171,13 +185,18 @@ static void declare_command(Variables *variables, char **argv) {
 		}
 	}
 
-	char *variable, *value;
-	parse(argv[1], &variable, &value);
-	if (variable == NULL || value == NULL) {
+	char *identifier, *value;
+	parse(argv[1], &identifier, &value);
+	if (identifier == NULL || value == NULL) {
 		return;
 	}
+	if (!is_identifier_valid(identifier)) {
+		printf("declare: `%s': not a valid identifier\n", argv[1]);
+		return ;
+	}
 
-	variables_declare(variables, variable, value);
+	variables_declare(variables, identifier, value);
+
 
 	return ;
 }
