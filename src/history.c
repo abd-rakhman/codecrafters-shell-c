@@ -11,13 +11,29 @@ struct History {
 	int cursor;
 };
 
-History *history_access(void) {
+History *history_create(void) {
 	History *history = malloc(sizeof(History));
 	history->list = malloc(BUFFER_SIZE * sizeof(char*));
 	history->size = 0;
 	history->cursor = 0;
 	
 	return history;
+}
+
+void history_read(History *history, char *path) {
+	FILE *file = fopen(path, "r");
+	if (file == NULL) {
+			return ;
+	}
+
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+
+	while ((nread = getline(&line, &len, file)) != -1) {
+		if (nread <= 0) break;
+		history_add(history, line);
+	}
 }
 
 char **history_list(History *history) {

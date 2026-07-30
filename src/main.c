@@ -375,7 +375,7 @@ int main(void) {
 	configure_terminal();
 	setbuf(stdout, NULL);
 	stdout_fd = dup(1), stderr_fd = dup(2);
-	History *history = history_access();
+	History *history = history_create();
 	Trie* trie = build_executables_trie();
 	Compspec* compspecs = compspec_create();
 	Jobs *jobs = jobs_create();

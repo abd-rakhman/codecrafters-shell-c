@@ -3,7 +3,9 @@
 
 typedef struct History History;
 
-History *history_access(void);
+History *history_create(void);
+
+void history_read(History *history, char *path);
 
 char **history_list(History *history);
 void history_print(History *history, int *tail);

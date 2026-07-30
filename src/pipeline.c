@@ -138,6 +138,10 @@ int *my_atoi(char *str) {
 }
 
 static void history_command(History *history, char **argv) {
+	if (strcmp(argv[1], "-r") == 0) {
+		history_read(history, argv[2]);
+		return ;
+	}
 	history_print(history, my_atoi(argv[1]));
 }
 
