@@ -9,6 +9,7 @@
 #include "pipeline.h"
 #include "compspec.h"
 #include "jobs.h"
+#include "variables.h"
 
 #define BUFFER_SIZE 1024
 
@@ -150,6 +151,19 @@ static void jobs_command(Jobs* jobs) {
 	jobs_print(jobs);
 }
 
+static void declare_command(Variables *variables, char **argv) {
+	if (argv[1] != NULL) {
+		if (strcmp(argv[1], "-p") == 0 && argv[2] != NULL) {
+			char *value = variables_get(variables, argv[2]);
+			if (value == NULL) {
+				printf("declare: %s: not found\n", argv[2]);
+			}
+		}
+	}
+
+	return ;
+}
+
 // ------------------- COMMAND ----------------------
 
 static void apply_trailing_redirect(Command *command) {
@@ -188,7 +202,7 @@ static Command *command_create(void) {
 	return command;
 }
 
-static void command_execute(Command *command, History *history, Compspec *compspecs, Jobs *jobs) {
+static void command_execute(Command *command, History *history, Compspec *compspecs, Jobs *jobs, Variables *variables) {
 	for (int i = 0; i < 3; i++) {
 		if (command->fd[i] != -1) {
 			dup2(command->fd[i], i);
@@ -207,6 +221,7 @@ static void command_execute(Command *command, History *history, Compspec *compsp
 	else if (strcmp(argv[0], "complete") == 0) complete_command(compspecs, argv);
 	else if (strcmp(argv[0], "history") == 0) history_command(history, argv);
 	else if (strcmp(argv[0], "jobs") == 0) jobs_command(jobs);
+	else if (strcmp(argv[0], "declare") == 0) declare_command(variables, argv);
 	else {
 		char *path = find_executable(argv[0]);
 		if (path == NULL) {
@@ -220,10 +235,10 @@ static void command_execute(Command *command, History *history, Compspec *compsp
 	dup2(stderr_fd, 2);
 }
 
-static void command_execute_via_child(Command *command, History *history, Compspec *compspecs, Jobs *jobs, bool is_background) {
+static void command_execute_via_child(Command *command, History *history, Compspec *compspecs, Jobs *jobs, Variables *variables, bool is_background) {
 	pid_t pid = fork();
 	if (pid == 0) {
-		command_execute(command, history, compspecs, jobs);
+		command_execute(command, history, compspecs, jobs, variables);
 		exit(0);
 	} else if (pid > 0) {
 		if (is_background) {
@@ -282,14 +297,14 @@ Pipeline *pipeline_create(char **argv, int argc) {
 }
 
 
-void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs, Jobs* jobs) {
+void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs, Jobs* jobs, Variables *variables) {
 	int n = pipeline->n;
 	if (n == 1) {
 		Command *cmd = pipeline->cmds[0];
 		if (is_builtin(cmd->argv[0]) && !pipeline->is_background) {
-			command_execute(cmd, history, compspecs, jobs);
+			command_execute(cmd, history, compspecs, jobs, variables);
 		} else {
-			command_execute_via_child(cmd, history, compspecs, jobs, pipeline->is_background);
+			command_execute_via_child(cmd, history, compspecs, jobs, variables, pipeline->is_background);
 		}
 		return ;
 	}
@@ -311,7 +326,7 @@ void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs,
 			if (i + 1 < n && cmd->fd[1] == -1) {
 				cmd->fd[1] = pipefds[i][1];
 			}
-			command_execute(cmd, history, compspecs, jobs);
+			command_execute(cmd, history, compspecs, jobs, variables);
 			if (i + 1 < n && cmd->fd[1] == -1) {
 				close(pipefds[i][1]);
 			}
@@ -330,36 +345,6 @@ void pipeline_execute(Pipeline *pipeline, History *history, Compspec *compspecs,
 	for (int i = 0; i < n; i++) {
 		waitpid(pids[i], NULL, 0);
 	}
-	// Command* cmd1 = pipeline->cmds[0];
-	// Command* cmd2 = pipeline->cmds[1];
-	//
-	// int pipefd[2];
-	// pipe(pipefd);
-	//
-	// pid_t pid1 = fork();
-	// if (pid1 == 0) {
-	// 	if (cmd1->fd[1] == -1) {
-	// 		cmd1->fd[1] = pipefd[1];
-	// 	}
-	// 	command_execute(cmd1, compspecs, jobs);
-	// 	close(pipefd[1]);
-	// 	exit(0);
-	// }
-	// close(pipefd[1]);
-	//
-	// pid_t pid2 = fork();
-	// if (pid2 == 0) {
-	// 	if (cmd2->fd[0] == -1) {
-	// 		cmd2->fd[0] = pipefd[0];
-	// 	}
-	// 	command_execute_via_child(cmd2, compspecs, jobs, pipeline->is_background);
-	// 	close(pipefd[0]);
-	// 	exit(0);
-	// }
-	// close(pipefd[0]);
-	//
-	// waitpid(pid1, NULL, 0);
-	// waitpid(pid2, NULL, 0);
 }
 
 bool pipeline_empty(Pipeline *pipeline) {

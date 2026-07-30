@@ -12,6 +12,7 @@
 #include "trie.h"
 #include "compspec.h"
 #include "jobs.h"
+#include "variables.h"
 
 #define BUFFER_SIZE 1024
 
@@ -137,7 +138,7 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
 	args[*n] = NULL;
 }
 
-void execute(History *history, Compspec *compspecs, Jobs* jobs, char line[], int line_len) {
+void execute(History *history, Compspec *compspecs, Jobs* jobs, Variables *variables, char line[], int line_len) {
 	int n = 0;
 	char **args = malloc(BUFFER_SIZE * sizeof(char*));
 	history_add(history, line);
@@ -151,7 +152,7 @@ void execute(History *history, Compspec *compspecs, Jobs* jobs, char line[], int
 		return;
 	}
 
-	pipeline_execute(pipeline, history, compspecs, jobs);
+	pipeline_execute(pipeline, history, compspecs, jobs, variables);
 	pipeline_destroy(pipeline);
 
 	jobs_reap(jobs);
@@ -192,9 +193,9 @@ static void handle_up_down_arrow(History *history, bool up, char *line, int *len
 	if (line != NULL) append_to_line(line, len, new_line);
 }
 
-static void handle_enter(History *history, Compspec *compspecs, Jobs* jobs, char *line, int *len) {
+static void handle_enter(History *history, Compspec *compspecs, Jobs* jobs, Variables *variables, char *line, int *len) {
 	printf("\n");
-	execute(history, compspecs, jobs, line, *len);
+	execute(history, compspecs, jobs, variables, line, *len);
 	*len = 0;
 	line[0] = '\0';
 }
@@ -339,7 +340,7 @@ static Trie *build_executables_trie(void) {
 	return trie;
 }
 
-static void run_repl(History *history, Trie *trie, Compspec *compspecs, Jobs* jobs) {
+static void run_repl(History *history, Trie *trie, Compspec *compspecs, Jobs* jobs, Variables *variables) {
 	char line[BUFFER_SIZE];
 	int len = 0;
 	int tab_count = 0;
@@ -359,7 +360,7 @@ static void run_repl(History *history, Trie *trie, Compspec *compspecs, Jobs* jo
 			handle_backspace(line, &len);
 			tab_count = 0;
 		} else if (c == '\n') {
-			handle_enter(history, compspecs, jobs, line, &len);
+			handle_enter(history, compspecs, jobs, variables, line, &len);
 			tab_count = 0;
 		} else if (c == '\t') {
 			tab_count++;
@@ -379,14 +380,16 @@ int main(void) {
 	Trie* trie = build_executables_trie();
 	Compspec* compspecs = compspec_create();
 	Jobs *jobs = jobs_create();
+	Variables *variables = variables_create();
 
 	printf("$ ");
-	run_repl(history, trie, compspecs, jobs); 
+	run_repl(history, trie, compspecs, jobs, variables); 
 
 	history_destroy(history);
 	trie_destroy(trie);
 	compspec_destroy(compspecs);
 	jobs_destroy(jobs);
+	variables_destroy(variables);
 	close(stdout_fd);
 	return 0;
 }
