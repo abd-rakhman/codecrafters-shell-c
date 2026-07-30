@@ -20,7 +20,13 @@ Map *map_create(void) {
 }
 
 void map_add(Map *map, const char *key, const char *value) {
-	// TODO: unique key constraint
+	for (int i = 0; i < map->size; i++) {
+		if (strcmp(map->keys[i], key) == 0) {
+			free(map->values[i]);
+			map->values[i] = strdup(value);
+			return;
+		}
+	}
 	map->keys[map->size] = strdup(key);
 	map->values[map->size] = strdup(value);
 	map->size++;
