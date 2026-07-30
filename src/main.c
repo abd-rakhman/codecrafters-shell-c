@@ -143,6 +143,15 @@ void execute(History *history, Compspec *compspecs, Jobs* jobs, Variables *varia
 	char **args = malloc(BUFFER_SIZE * sizeof(char*));
 	history_add(history, line);
 	parse_line(line, line_len, &n, args);
+	for (int i = 0; i < n; i++) {
+		if (args[i][0] == '$') {
+			char *key = args[i];
+			key++;
+			char *value = variables_get(variables, key);
+			free(args[i]);
+			args[i] = strdup(value);
+		}
+	}
 
 	Pipeline *pipeline = pipeline_create(args, n);
 	free_str_array(args, n);
