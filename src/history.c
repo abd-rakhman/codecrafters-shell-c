@@ -45,7 +45,7 @@ void history_write(History *history, char *path, bool append) {
 	}
 
 	for (int i = 0; i < history->size; i++) {
-		fprintf(file, "%s%s", history->list[i], (i + 1 == history->size ? "" : "\n"));
+		fprintf(file, "%s\n", history->list[i]);
 	}
 
 	fclose(file);
