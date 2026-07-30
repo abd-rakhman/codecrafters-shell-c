@@ -1,16 +1,12 @@
 ![Build Your Own Shell](banner.png)
 
-# Shell
-
 A POSIX-ish shell in C from the [CodeCrafters challenge](https://app.codecrafters.io/courses/shell/overview).
 
 It can interpret shell commands, run external programs, and builtins like `cd`, `pwd`, `echo`, `type`, `history`, `jobs`, `declare`, and `complete`. It also does pipes (`|`), redirects (`>`, `>>`), background jobs (`&`), Tab autocomplete, and a REPL with history (↑↓).
 
-**Note**: If you're viewing this repo on GitHub, head over to [codecrafters.io](https://codecrafters.io) to try the challenge.
-
 Run: `./your_program.sh` or `make run`
 
-## Files
+### Files
 
 | File | Job |
 |------|-----|
