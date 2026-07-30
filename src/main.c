@@ -138,20 +138,44 @@ void parse_line(const char *line, int line_len, int *n, char **args) {
 	args[*n] = NULL;
 }
 
-void execute(History *history, Compspec *compspecs, Jobs* jobs, Variables *variables, char line[], int line_len) {
+void expand_variables(Variables *variables, char **line_ptr, int *len) {
+	char *line = *line_ptr;
+	char *new_line = malloc(BUFFER_SIZE);
+	int new_len = 0;
+	for (int i = 0; i < *len; ) {
+		char p = line[i];
+		if (p == '$') {
+			i++;
+			char *identifier = malloc(BUFFER_SIZE);
+			int id_len = 0;
+			while(line[i] != ' ' && line[i] != '\0') {
+				identifier[id_len++] = line[i++];
+			}
+			identifier[id_len] = '\0';
+
+			char *value = variables_get(variables, identifier);
+			free(identifier);
+			if (value == NULL) continue;
+			for (char *t = value; *t != '\0'; t++) {
+				new_line[new_len++] = *t;
+			}
+			continue;
+		} 
+		i++;
+		new_line[new_len++] = p;
+	}
+	*line_ptr = new_line;
+	*len = new_len;
+
+}
+
+void execute(History *history, Compspec *compspecs, Jobs* jobs, Variables *variables, char *line, int len) {
 	int n = 0;
 	char **args = malloc(BUFFER_SIZE * sizeof(char*));
 	history_add(history, line);
-	parse_line(line, line_len, &n, args);
-	for (int i = 0; i < n; i++) {
-		if (args[i][0] == '$') {
-			char *key = args[i];
-			key++;
-			char *value = variables_get(variables, key);
-			free(args[i]);
-			args[i] = strdup(value);
-		}
-	}
+	expand_variables(variables, &line, &len);
+
+	parse_line(line, len, &n, args);
 
 	Pipeline *pipeline = pipeline_create(args, n);
 	free_str_array(args, n);
