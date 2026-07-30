@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include "history.h"
 
 #define BUFFER_SIZE 1024
@@ -35,6 +36,19 @@ void history_read(History *history, char *path) {
 		line[strcspn(line, "\n")] = '\0';
 		history_add(history, line);
 	}
+}
+
+void history_write(History *history, char *path, bool append) {
+	FILE *file = fopen(path, append ? "a" : "w");
+	if (file == NULL) {
+			return ;
+	}
+
+	for (int i = 0; i < history->size; i++) {
+		fprintf(file, "%s%s", history->list[i], (i + 1 == history->size ? "" : "\n"));
+	}
+
+	fclose(file);
 }
 
 char **history_list(History *history) {
