@@ -148,10 +148,19 @@ void expand_variables(Variables *variables, char **line_ptr, int *len) {
 			i++;
 			char *identifier = malloc(BUFFER_SIZE);
 			int id_len = 0;
-			while(line[i] != ' ' && line[i] != '\0') {
-				identifier[id_len++] = line[i++];
+			if (line[i] == '{') {
+				i++;
+				while(line[i] != '}') {
+					identifier[id_len++] = line[i++];
+				}
+				i++;
+				identifier[id_len] = '\0';
+			} else {
+				while(line[i] != ' ' && line[i] != '\0') {
+					identifier[id_len++] = line[i++];
+				}
+				identifier[id_len] = '\0';
 			}
-			identifier[id_len] = '\0';
 
 			char *value = variables_get(variables, identifier);
 			free(identifier);
