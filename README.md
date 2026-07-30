@@ -1,34 +1,24 @@
-[![progress-banner](https://backend.codecrafters.io/progress/shell/e59ad0b8-dfbe-4d53-8f24-ae7a59cce2cf)](https://app.codecrafters.io/users/abd-rakhman?r=2qF)
+![Build Your Own Shell](banner.png)
 
-This is a starting point for C solutions to the
-["Build Your Own Shell" Challenge](https://app.codecrafters.io/courses/shell/overview).
+# Shell
 
-In this challenge, you'll build your own POSIX compliant shell that's capable of
-interpreting shell commands, running external programs and builtin commands like
-cd, pwd, echo and more. Along the way, you'll learn about shell command parsing,
-REPLs, builtin commands, and more.
+A POSIX-ish shell in C from the [CodeCrafters challenge](https://app.codecrafters.io/courses/shell/overview).
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+It can interpret shell commands, run external programs, and builtins like `cd`, `pwd`, `echo`, `type`, `history`, `jobs`, `declare`, and `complete`. It also does pipes (`|`), redirects (`>`, `>>`), background jobs (`&`), Tab autocomplete, and a REPL with history (↑↓).
 
-# Passing the first stage
+**Note**: If you're viewing this repo on GitHub, head over to [codecrafters.io](https://codecrafters.io) to try the challenge.
 
-The entry point for your `shell` implementation is in `src/main.c`. Study and
-uncomment the relevant code, then run the command below to execute the tests on
-our servers:
+Run: `./your_program.sh` or `make run`
 
-```sh
-codecrafters submit
-```
+## Files
 
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `cmake` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.c`.
-1. Run `codecrafters submit` to submit your solution to CodeCrafters. Test
-   output will be streamed to your terminal.
+| File | Job |
+|------|-----|
+| `src/main.c` | Start here. Reads keys. Tab / ↑↓. Turns a line into words. Calls the pipeline. |
+| `src/pipeline.c` | Splits on `\|`. Handles `>` / `>>` / `&`. Runs builtins or `fork`+`exec`. |
+| `src/history.c` | Past commands. Arrow keys + `history` builtin. Optional `HISTFILE`. |
+| `src/jobs.c` | Background jobs (`&`). `jobs` builtin. Cleans up finished ones. |
+| `src/variables.c` | `declare` / `$name`. Thin wrap over the map. |
+| `src/compspec.c` | Custom Tab complete (`complete -C`). |
+| `src/trie.c` | Fast prefix search for command names on Tab. |
+| `src/map.c` | Simple key → value store. Used by variables + compspec. |
