@@ -196,7 +196,10 @@ static void command_execute(Command *command, History *history, Compspec *compsp
 		}
 	}
 	char **argv = command->argv;
-	if (strcmp(argv[0], "exit") == 0) exit(0);
+	if (strcmp(argv[0], "exit") == 0) {
+		history_write(history, getenv("HISTFILE"), false);
+		exit(0);
+	}
 	else if (strcmp(argv[0], "echo") == 0) echo_command(argv);
 	else if (strcmp(argv[0], "type") == 0) type_command(argv[1] ? argv[1] : "");
 	else if (strcmp(argv[0], "pwd") == 0) pwd_command();
