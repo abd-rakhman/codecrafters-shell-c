@@ -10,6 +10,7 @@ struct History {
 	char **list;
 	int size;
 	int cursor;
+	int last_append;
 };
 
 History *history_create(void) {
@@ -17,6 +18,7 @@ History *history_create(void) {
 	history->list = malloc(BUFFER_SIZE * sizeof(char*));
 	history->size = 0;
 	history->cursor = 0;
+	history->last_append = 0;
 	
 	return history;
 }
@@ -44,9 +46,11 @@ void history_write(History *history, char *path, bool append) {
 			return ;
 	}
 
-	for (int i = 0; i < history->size; i++) {
+	for (int i = history->last_append; i < history->size; i++) {
 		fprintf(file, "%s\n", history->list[i]);
 	}
+	history->last_append = history->size;
+	
 
 	fclose(file);
 }

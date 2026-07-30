@@ -1,3 +1,7 @@
 echo solai
 echo bylai
 history -w ./history.txt
+echo ne
+history -a ./history.txt
+echo baaa
+history -a ./history.txt
